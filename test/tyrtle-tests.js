@@ -1,3 +1,4 @@
+/*globals jQuery, asyncTest, test, Tyrtle, equal, expect, start */
 jQuery(function ($) {
     asyncTest("Basic empty tests are reported as success", function () {
         expect(4);
@@ -85,7 +86,7 @@ jQuery(function ($) {
             });
             this.test("f", function (assert) {
                 assert(x).not(3)("x should not be three");
-            })
+            });
         });
         t.run();
     });

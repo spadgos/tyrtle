@@ -55,12 +55,10 @@
             };
         }())
         : function (func) {
-            return function (func) {
-                var args = Array.prototype.slice.call(arguments, 1);
-                setTimeout(args.length === 0 ? func : function () {
-                    func.apply(func, args);
-                }, 0);
-            };
+            var args = Array.prototype.slice.call(arguments, 1);
+            setTimeout(args.length === 0 ? func : function () {
+                func.apply(func, args);
+            }, 0);
         }
     );
     noop = function () {};
