@@ -1,5 +1,5 @@
 /*!
- * Myrtle - A JavaScript Unit Testing Framework
+ * Tyrtle - A JavaScript Unit Testing Framework
  * 
  * Copyright (c) 2011 Nick Fisher
  * Licensed under the Creative Commons BY-SA License
@@ -88,6 +88,9 @@
         Tyrtle.PASS = PASS;
         Tyrtle.FAIL = FAIL;
         Tyrtle.SKIP = SKIP;
+        Tyrtle.setRenderer = function (renderer) {
+            this.renderer = renderer;
+        };
         extend(Tyrtle, {
             passes : 0,
             fails : 0,
@@ -95,7 +98,9 @@
             skips : 0,
             ////
             module : function (name, body) {
-                this.modules.push(new Module(name, body));
+                var m = new Module(name, body);
+                m.tyrtle = this;
+                this.modules.push(m);
             },
             run : function (options) {
                 var runNext,
@@ -103,12 +108,12 @@
                     l = this.modules.length,
                     tyrtle = this
                 ;
-                
+                Tyrtle.renderer.beforeRun(this);
                 runNext = function () {
                     var mod;
                     ++i;
                     if (i === l) {
-                        // all done
+                        Tyrtle.renderer.afterRun(tyrtle);
                         tyrtle.callback();
                     } else {
                         mod = tyrtle.modules[i];
@@ -123,7 +128,12 @@
                 runNext();
             },
             runModule : function (mod, callback) {
-                mod.run(callback);
+                var self = this;
+                Tyrtle.renderer.beforeModule(mod, this);
+                mod.run(function () {
+                    Tyrtle.renderer.afterModule(mod, self);
+                    callback();
+                });
             }
         });
     }());
@@ -133,22 +143,21 @@
     (function () {
         Module = function (name, body) {
             this.name = name;
-            this.body = body;
+            this.tests = [];
+            body.call(this); // TODO: could provide a reduced api here
         };
         extend(Module, {
-            tests : null,
-            passes : 0,
-            fails : 0,
-            skips : 0,
-            errors : 0,
+            tests : null,   // array of tests
+            tyrtle : null,  // reference to the owner Tyrtle instance
+            passes : 0,     // }
+            fails : 0,      // } counts of the test results
+            skips : 0,      // } 
+            errors : 0,     // }
+            //////////////////
             test : function (name, fn) {
                 this.tests.push(new Test(name, fn));
             },
             run : function (callback) {
-                if (this.tests === null) {
-                    this.tests = [];
-                    this.body();
-                }
                 var runNext,
                     i = -1,
                     l = this.tests.length,
@@ -184,8 +193,12 @@
                 runNext();
             },
             runTest : function (test, callback) {
-                // todo: befores and afters here
-                test.run(callback);
+                var m = this, t = this.tyrtle;
+                Tyrtle.renderer.beforeTest(test, m, t);
+                test.run(function () {
+                    Tyrtle.renderer.afterTest(test, m, t);
+                    callback();
+                });
             }
         });
     }());
@@ -227,14 +240,19 @@
         });
     }());
     
-    AssertionError = function (msg) {
+    AssertionError = function (msg, args, userMessage) {
         this.name = "AssertionError";
-        this.message = msg;
+        this.message = msg + (userMessage ? ": " + userMessage : "");
+        this.args = args;
     };
     
     SkipMe = function (reason) {
         this.message = reason;
     };
+    
+    //////////////////
+    //  Assertions  //
+    //////////////////
     (function () {
         var AssertThat, fail, assertions;
         
@@ -244,7 +262,7 @@
         assert.that = assert;
         
         fail = function (message, args, userMessage) {
-            throw new AssertionError(message);
+            throw new AssertionError(message, args, userMessage);
         };
         
         AssertThat = function (actual) {   
@@ -289,6 +307,7 @@
         });
         extend(AssertThat, assertions);
     }());
+
 //#JSCOVERAGE_IF
     if (typeof module !== 'undefined') {
         module.exports = Tyrtle;
