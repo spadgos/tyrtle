@@ -27,5 +27,61 @@
             assert.that(x).is("3").since("Comparing to a string should fail");
         });
     });
+    tests.module("Tests which have asynchronous before helpers", function () {
+        var x;
+        this.before(function (cb) {
+            setTimeout(function () {
+                x = 2;
+                cb();
+            }, 5);
+        });
+        this.test("Check that the before is executed first", function (assert) {
+            assert.that(x).is(2)("The before should have finished running before this test.");
+            x = -666;
+        });
+        this.test("And again, in between the tests", function (assert) {
+            assert.that(x).is(2)("The before should have run again before this test.");
+        });
+    });
+    tests.module("Tests which have asynchronous after helpers", function () {
+        var x, y;
+        this.beforeAll(function () {
+            x = null;
+            y = true;
+        });
+        this.after(function (cb) {
+            setTimeout(function () {
+                x = 1;
+                cb();
+            }, 5);
+        });
+        this.test("Check that the after has not run yet", function (assert) {
+            assert.that(x).is(null)("The beforeAll should have set x to null.");
+            x = -666;
+            y = false;
+        });
+        this.test("Check that the after has executed now", function (assert) {
+            this.skipIf(y, "This test should only be run after the first test in this module.");
+            assert.that(x).is(1)("The after should have run before this test.");
+        });
+    });
+    tests.module("Tests which have asynchronous beforeAll helpers", function () {
+        var x, y;
+        this.beforeAll(function (cb) {
+            setTimeout(function () {
+                x = 1;
+                cb();
+            }, 5);
+        });
+        this.test("Check that the beforeAll has run yet", function (assert) {
+            assert.that(x).is(1)("The beforeAll should have set x to 1.");
+            x = -666;
+            y = false;
+        });
+        this.test("Check that the after has executed now", function (assert) {
+            this.skipIf(y, "This test should only be run after the first test in this module.");
+            assert.that(x).is(-666)("The beforeAll should not have run again.");
+        });
+    });
     tests.run();
 }());

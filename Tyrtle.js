@@ -14,6 +14,7 @@
         SKIP = 2,
         extend,
         defer,
+        setDefer,
         noop,
         each
     ;
@@ -25,42 +26,60 @@
             }
         }
     };
-    defer = (root && root.postMessage 
-        ? (function () {
-            // credit to David Baron: http://dbaron.org/log/20100309-faster-timeouts
-            var timeouts = [], messageName = "zero-timeout-message", setZeroTimeout, handleMessage;
-
-            setZeroTimeout = function (fn) {
-                timeouts.push(fn);
-                root.postMessage(messageName, "*");
-            };
-
-            handleMessage = function (event) {
-                if (event.source === root && event.data === messageName) {
-                    event.stopPropagation();
-                    if (timeouts.length > 0) {
-                        var fn = timeouts.shift();
-                        fn();
-                    }
-                }
-            };
-            
-            root.addEventListener("message", handleMessage, true);
-            
-            return function (func) {
-                var args = Array.prototype.slice.call(arguments, 1);
-                setZeroTimeout(args.length === 0 ? func : function () {
-                    func.apply(func, args);
-                });
-            };
-        }())
-        : function (func) {
+    // defer
+    (function () {
+        var legacyMethod, postMessageMethod;
+        /**
+         * The regular defer method using a 0ms setTimeout. In reality, this will be executed in 4-10ms.
+         */
+        legacyMethod = function (func) {
             var args = Array.prototype.slice.call(arguments, 1);
             setTimeout(args.length === 0 ? func : function () {
                 func.apply(func, args);
             }, 0);
-        }
-    );
+        };
+        /**
+         * The postMessage defer method which will get executed as soon as the call stack has cleared.
+         * Credit to David Baron: http://dbaron.org/log/20100309-faster-timeouts
+         */
+        postMessageMethod = !root.postMessage
+            ? legacyMethod
+            : (function () {
+                var timeouts = [], messageName = "zero-timeout-message", setZeroTimeout, handleMessage;
+    
+                setZeroTimeout = function (fn) {
+                    timeouts.push(fn);
+                    root.postMessage(messageName, "*");
+                };
+    
+                handleMessage = function (event) {
+                    if (event.source === root && event.data === messageName) {
+                        event.stopPropagation();
+                        if (timeouts.length > 0) {
+                            var fn = timeouts.shift();
+                            fn();
+                        }
+                    }
+                };
+                
+                root.addEventListener("message", handleMessage, true);
+                
+                return function (func) {
+                    var args = Array.prototype.slice.call(arguments, 1);
+                    setZeroTimeout(args.length === 0 ? func : function () {
+                        func.apply(func, args);
+                    });
+                };
+            }())
+        ;
+        /**
+         * Override the current defer method. This should be only needed for testing of Tyrtle itself.
+         */
+        setDefer = function (forceLegacy) {
+            defer = forceLegacy ? legacyMethod : postMessageMethod;
+        };
+        setDefer(false);
+    }());
     noop = function () {};
     each = function (obj, iterator, context) {
         if (obj === null || typeof obj === 'undefined') {
@@ -90,6 +109,9 @@
         Tyrtle.SKIP = SKIP;
         Tyrtle.setRenderer = function (renderer) {
             this.renderer = renderer;
+        };
+        Tyrtle.useLegacyTimeouts = function (legacy) {
+            setDefer(legacy);
         };
         // a default renderer which clearly does nothing, provided so that we don't have to check each function exists
         // when using it

@@ -1,4 +1,4 @@
-/*globals jQuery, asyncTest, test, Tyrtle, Myrtle, equal, expect, start */
+/*globals jQuery, asyncTest, test, Tyrtle, Myrtle, equal, expect, start, raises */
 jQuery(function ($) {
     asyncTest("Basic empty tests are reported as success", function () {
         expect(4);
@@ -261,25 +261,87 @@ jQuery(function ($) {
             t.module('a', function () {
                 this.before(function () {});
                 this.before(function () {});
-            })
+            });
         }, /already has a/);
         raises(function () {
             t.module('a', function () {
                 this.after(function () {});
                 this.after(function () {});
-            })
+            });
         }, /already has a/);
         raises(function () {
             t.module('a', function () {
                 this.beforeAll(function () {});
                 this.beforeAll(function () {});
-            })
+            });
         }, /already has a/);
         raises(function () {
             t.module('a', function () {
                 this.afterAll(function () {});
                 this.afterAll(function () {});
-            })
+            });
         }, /already has a/);
+    });
+    asyncTest("Asynchronous befores and afters", function () {
+        var t, testsRun = 0, befores = 0, afters = 0;
+        t = new Tyrtle({
+            callback : function () {
+                equal(befores, 2);
+                equal(afters, 2);
+                equal(testsRun, 2);
+                start();
+            }
+        });
+        t.module("foo", function () {
+            this.before(function (callback) {
+                befores++;
+                callback();
+            });
+            this.after(function (callback) {
+                afters++;
+                callback();
+            });
+            this.test("a", function () {
+                testsRun++;
+            });
+            this.test('b', function () {
+                testsRun++;
+            });
+        });
+        t.run();
+    });
+    
+    asyncTest("Befores and afters are given callbacks only if asked for", function () {
+        var t, sync, async;
+        expect(12);
+        t = new Tyrtle({
+            callback : function () {
+                start();
+            }
+        });
+        sync = function () {
+            equal(arguments.length, 0, "No arguments should have been passed.");
+        };
+        async = function (cb) {
+            equal(arguments.length, 1, "One argument should have been passed.");
+            equal(typeof cb, "function", "The argument should be a function");
+            cb();
+        };
+
+        t.module("Synchronous helpers", function () {
+            this.beforeAll(sync);
+            this.before(sync);
+            this.after(sync);
+            this.afterAll(sync);
+            this.test("a", function () {});
+        });
+        t.module("Asynchronous helpers", function () {
+            this.beforeAll(async);
+            this.before(async);
+            this.after(async);
+            this.afterAll(async);
+            this.test("a", function () {});
+        });
+        t.run();
     });
 });
