@@ -108,7 +108,7 @@ Tyrtle.setRenderer(new (function () {
     
     
     HtmlRenderer.prototype.beforeRun = function (tyrtle) {
-        var $tags, i, l, $ticker, $link;
+        var $tags, i, l, $ticker, $link, renderer = this;
         if (!tyrtle.$container) {
             window.document.title = "Running tests...";
     
@@ -166,7 +166,7 @@ Tyrtle.setRenderer(new (function () {
                         event.preventDefault();
                         // do nothing while it is still running
                         // TODO: perhaps change a CSS style instead of individually toggling
-                        if (tyrtle.testsLeft === 0) {
+                        if (renderer.testsLeft === 0) {
                             $('> .pass', tyrtle.$container).toggle();
                         }
                     })

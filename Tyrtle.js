@@ -199,6 +199,75 @@
                     Tyrtle.renderer.afterTest(test, m, t);
                     callback();
                 });
+            },
+            rerunTest : function (test, tyrtle) {
+                var mod = this, run, done;
+                switch (test.status) {
+                case PASS :
+                    --this.passes;
+                    --tyrtle.passes;
+                    break;
+                case FAIL :
+                    --this.fails;
+                    --tyrtle.fails;
+                    if (test.error) {
+                        --this.errors;
+                        --tyrtle.errors;
+                    }
+                    break;
+                case SKIP :
+                    --this.skips;
+                    --tyrtle.skips;
+                }
+                run = function () {
+                    mod.runTest(test, function () {
+                        switch (test.status) {
+                        case PASS :
+                            ++mod.passes;
+                            ++tyrtle.passes;
+                            break;
+                        case FAIL :
+                            ++mod.fails;
+                            ++tyrtle.fails;
+                            if (test.error) {
+                                ++mod.errors;
+                                ++tyrtle.errors;
+                            }
+                            break;
+                        case SKIP :
+                            ++mod.skips;
+                            ++tyrtle.skips;
+                        }
+                        // TODO
+                        if (false && mod.helpers.afterAll) {
+                            if (mod.helpers.afterAll.isAsync) {
+                                mod.helpers.afterAll(done);
+                            } else {
+                                mod.helpers.afterAll();
+                                done();
+                            }
+                        } else {
+                            done();
+                        }
+                    });
+                };
+                done = function () {
+                    Tyrtle.renderer.afterModule(mod, tyrtle);
+                    Tyrtle.renderer.afterRun(tyrtle);
+                };
+                // TODO
+                if (false && this.helpers.beforeAll) {
+                    if (this.helpers.beforeAll.isAsync) {
+                        this.helpers.beforeAll(function () {
+                            defer(run);
+                        });
+                    } else {
+                        this.helpers.beforeAll();
+                        run();
+                    }
+                } else {
+                    run();
+                }
             }
         });
     }());
