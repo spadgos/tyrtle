@@ -1,14 +1,14 @@
 /*globals Tyrtle */
 (function () {
     var tests = new Tyrtle();
-    
+
     tests.module("Tyrtle tests", function () {
         var skipCounter = 0;
-        
+
         this.test("Checking for equality", function (assert) {
             var x = 3;
             assert.that(x).is(3).since("x should be three");
-            assert.that(x).is.not("3").since("x should not be a string");
+            assert.that(x).not('3').since("x should not be a string");
         });
         this.test("Checking types", function (assert) {
             this.skipIf(!assert().ofType, "ofType has not been implemented yet");
@@ -24,7 +24,7 @@
         });
         this.test("Skip this test", function (assert) {
             this.skip("This test should be skipped.");
-            
+
             assert.that(3).is(4)("This should never be executed.");
             var x = 0;
             x(); // this should never be executed, either.
@@ -48,6 +48,12 @@
         this.test("Equality checking is strict", function (assert) {
             var x = 3;
             assert.that(x).is("3").since("Comparing to a string should fail");
+        });
+        this.test("Objects are tested for identity", function (assert) {
+            assert.that([]).is([]).since("Two different objects are not identical");
+        });
+        this.test("Not should reject identical variables", function (assert) {
+            assert.that(3).not(3).since("Two identical objects should be the same");
         });
     });
     tests.module("Tests which have asynchronous before helpers", function () {

@@ -1,6 +1,6 @@
 /*!
  * Tyrtle - A JavaScript Unit Testing Framework
- * 
+ *
  * Copyright (c) 2011 Nick Fisher
  * Licensed under the Creative Commons BY-SA License
  * http://creativecommons.org/licenses/by-sa/3.0/
@@ -46,12 +46,12 @@
             ? legacyMethod
             : (function () {
                 var timeouts = [], messageName = "zero-timeout-message", setZeroTimeout, handleMessage;
-    
+
                 setZeroTimeout = function (fn) {
                     timeouts.push(fn);
                     root.postMessage(messageName, "*");
                 };
-    
+
                 handleMessage = function (event) {
                     if (event.source === root && event.data === messageName) {
                         event.stopPropagation();
@@ -61,9 +61,9 @@
                         }
                     }
                 };
-                
+
                 root.addEventListener("message", handleMessage, true);
-                
+
                 return function (func) {
                     var args = Array.prototype.slice.call(arguments, 1);
                     setZeroTimeout(args.length === 0 ? func : function () {
@@ -214,7 +214,7 @@
             helpers : null, // object containing the (before|after)(All)? functions
             passes : 0,     // }
             fails : 0,      // } counts of the test results
-            skips : 0,      // } 
+            skips : 0,      // }
             errors : 0,     // }
             //////////////////
             test : function (name, fn, assertionsFn) {
@@ -380,7 +380,7 @@
             }
         });
     }());
-    
+
     (function () {
         //
         // Test
@@ -446,65 +446,67 @@
             }
         });
     }());
-    
+
     AssertionError = function (msg, args, userMessage) {
         this.name = "AssertionError";
         this.message = msg + (userMessage ? ": " + userMessage : "");
         this.args = args;
     };
-    
+
     SkipMe = function (reason) {
         this.message = reason;
     };
-    
+
     //////////////////
     //  Assertions  //
     //////////////////
     (function () {
-        var AssertThat, fail, assertions;
-        
+        var AssertThat, fail, assertions, build;
+
         assert = function (actual) {
             return new AssertThat(actual);
         };
         assert.that = assert;
-        
+
         fail = function (message, args, userMessage) {
             throw new AssertionError(message, args, userMessage);
         };
-        
-        AssertThat = function (actual) {   
+
+        build = function (condition, message) {
+            var args = Array.prototype.slice.call(arguments, 2),
+                f
+            ;
+            f = function (userMessage) {
+                if (!condition.apply({}, args)) {
+                    fail(message, args, userMessage);
+                }
+            };
+            f.since = f;
+            return f;
+        };
+        AssertThat = function (actual) {
             this.actual = actual;
         };
         assertions = {
             is : function (expected) {
-                var actual, f;
-                actual = this.actual;
-                f = function (message) {
-                    if (actual !== expected) {
-                        fail(
-                            "Actual value {0} did not match expected value {1}",
-                            [actual, expected],
-                            message
-                        );
-                    }
-                };
-                f.since = f;
-                return f;
+                return build(
+                    function (a, e) {
+                        return a === e;
+                    },
+                    "Actual value {0} did not match expected value {1}",
+                    this.actual,
+                    expected
+                );
             },
             not : function (unexpected) {
-                var actual, f;
-                actual = this.actual;
-                f = function (message) {
-                    if (actual === unexpected) {
-                        fail(
-                            "Actual value matched the unexpected value {0}",
-                            [actual],
-                            message
-                        );
-                    }
-                };
-                f.since = f;
-                return f;
+                return build(
+                    function (a, un) {
+                        return a !== un;
+                    },
+                    "Actual value matched the unexpected value {0}",
+                    this.actual,
+                    unexpected
+                );
             }
             //ofType : function (expectedType) {
             //    // TODO: provide a way to override the fail message
@@ -526,5 +528,5 @@
     } else {
         root.Tyrtle = Tyrtle;
     }
-    
+
 }(this));
