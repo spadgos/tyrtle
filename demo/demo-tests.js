@@ -10,6 +10,18 @@
             assert.that(x).is(3).since("x should be three");
             assert.that(x).is.not("3").since("x should not be a string");
         });
+        this.test("Checking types", function (assert) {
+            this.skipIf(!assert().ofType, "ofType has not been implemented yet");
+            var x;
+            assert.that(3).is.ofType('number').since('3 should be a number');
+            assert('3').ofType('string')('"3" should be a string');
+            assert.that({}).is.ofType('object')('{} is an object');
+            assert.that([]).is.ofType('object')('arrays are objects too');
+            assert.that(/a/).is.ofType('object')('regexes are objects');
+            assert.that(null).is.ofType('object')('strangely, null is an object');
+            assert.that(x).is.ofType('undefined')('undefined variables are undefined');
+            assert.that(function () {}).is.ofType('function')();
+        });
         this.test("Skip this test", function (assert) {
             this.skip("This test should be skipped.");
             

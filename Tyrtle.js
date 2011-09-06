@@ -506,6 +506,11 @@
                 f.since = f;
                 return f;
             }
+            //ofType : function (expectedType) {
+            //    // TODO: provide a way to override the fail message
+            //    this.actual = typeof this.actual;
+            //    return assertions.is.call(this, expectedType);
+            //}
         };
         each(assertions, function (fn, key) {
             if (key !== 'is') {
