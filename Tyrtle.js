@@ -217,8 +217,8 @@
             skips : 0,      // } 
             errors : 0,     // }
             //////////////////
-            test : function (name, fn) {
-                this.tests.push(new Test(name, fn));
+            test : function (name, fn, assertionsFn) {
+                this.tests.push(new Test(name, fn, assertionsFn));
             },
             before : function (fn) {
                 addHelper.call(this, 'before', fn);
@@ -385,16 +385,17 @@
         //
         // Test
         //
-        Test = function (name, body) {
+        Test = function (name, body, asyncFn) {
             this.name = name;
             this.body = body;
+            this.asyncFn = asyncFn;
         };
         extend(Test, {
             status : null,
             statusMessage: '',
             runTime : -1,
             error : null,
-            isAsync : false,
+            asyncFn : null,
             ///////////////
             skip : function (reason) {
                 throw new SkipMe(reason);
@@ -405,24 +406,42 @@
                 }
             },
             run : function (callback) {
-                var start;
+                var start, success, handleError, test = this;
+                success = function () {
+                    test.runTime = new Date() - start;
+                    test.status = PASS;
+                    test.statusMessage = 'Passed';
+                    callback(test);
+                };
+                handleError = function (e) {
+                    test.status = FAIL;
+                    test.statusMessage = "Failed: " + ((e && e.message) || String(e));
+                    if (e instanceof SkipMe) {
+                        test.status = SKIP;
+                        test.statusMessage = "Skipped" + (e.message ? " because " + e.message : "");
+                    } else if (!(e instanceof AssertionError)) {
+                        test.error = e;
+                    }
+                    callback(test);
+                };
                 try {
                     start = new Date();
-                    this.body(assert);
-                    this.runTime = new Date() - start;
-                    this.status = PASS;
-                    this.statusMessage = 'Passed';
-                } catch (e) {
-                    this.status = FAIL;
-                    this.statusMessage = "Failed: " + ((e && e.message) || String(e));
-                    if (e instanceof SkipMe) {
-                        this.status = SKIP;
-                        this.statusMessage = "Skipped" + (e.message ? " because " + e.message : "");
-                    } else if (!(e instanceof AssertionError)) {
-                        this.error = e;
+                    if (this.asyncFn) {
+                        this.body(function (variables) {
+                            variables = variables || {};
+                            try {
+                                test.asyncFn.call(variables, assert);
+                                success();
+                            } catch (ee) {
+                                handleError(ee);
+                            }
+                        });
+                    } else {
+                        this.body(assert);
+                        success();
                     }
-                } finally {
-                    callback(this);
+                } catch (e) {
+                    handleError(e);
                 }
             }
         });

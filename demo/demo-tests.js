@@ -20,6 +20,17 @@
         this.test("Conditionally skipping", function (assert) {
             this.skipIf(++skipCounter % 2, "This will be skipped every second time.");
         });
+        this.test("This is an asynchronous test", function (callback) {
+            setTimeout(function () {
+                callback({
+                    x : 1,
+                    y : 2
+                });
+            }, 15);
+        }, function (assert) {
+            assert.that(this.x).is(1)("x should be one");
+            assert.that(this.y).is(2)("y should be two");
+        });
     });
     tests.module("Failing assertions (these should all fail)", function () {
         this.test("Equality checking is strict", function (assert) {
