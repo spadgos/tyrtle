@@ -286,11 +286,20 @@
             runTime : -1,
             error : null,
             isAsync : false,
+            ///////////////
+            skip : function (reason) {
+                throw new SkipMe(reason);
+            },
+            skipIf : function (condition, reason) {
+                if (condition) {
+                    this.skip(reason);
+                }
+            },
             run : function (callback) {
                 var start;
                 try {
                     start = new Date();
-                    this.body.call({}, assert);
+                    this.body(assert);
                     this.runTime = new Date() - start;
                     this.status = PASS;
                     this.statusMessage = 'Passed';
@@ -299,6 +308,7 @@
                     this.statusMessage = "Failed: " + ((e && e.message) || String(e));
                     if (e instanceof SkipMe) {
                         this.status = SKIP;
+                        this.statusMessage = "Skipped" + (e.message ? " because " + e.message : "");
                     } else if (!(e instanceof AssertionError)) {
                         this.error = e;
                     }
