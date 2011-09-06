@@ -1,4 +1,4 @@
-/*globals jQuery, asyncTest, test, Tyrtle, equal, expect, start */
+/*globals jQuery, asyncTest, test, Tyrtle, Myrtle, equal, expect, start */
 jQuery(function ($) {
     asyncTest("Basic empty tests are reported as success", function () {
         expect(4);
@@ -108,5 +108,178 @@ jQuery(function ($) {
             });
         });
         t.run();
+    });
+    asyncTest("Test helpers are executed properly", function () {
+        expect(5);
+        var t, helpers, x, y;
+        t = new Tyrtle({
+            callback : function () {
+                /*jslint newcap: false */
+                equal(this.passes, 2, "All tests should have passed.");
+                equal(Myrtle(helpers, 'before').callCount(),    2, "The before should be run twice");
+                equal(Myrtle(helpers, 'after').callCount(),     2, "The after should be run twice");
+                equal(Myrtle(helpers, 'beforeAll').callCount(), 1, "The beforeAll should be run once");
+                equal(Myrtle(helpers, 'afterAll').callCount(),  1, "The afterAll should be run once");
+                Myrtle.releaseAll();
+                start();
+                /*jslint newcap: true */
+            }
+        });
+        
+        helpers = {
+            before : function () {
+                x = 1;
+            },
+            after : function () {},
+            beforeAll : function () {
+                y = 2;
+            },
+            afterAll : function () {}
+        };
+        Myrtle.spy(helpers, "before");
+        Myrtle.spy(helpers, "beforeAll");
+        Myrtle.spy(helpers, "after");
+        Myrtle.spy(helpers, "afterAll");
+        t.module("foo", function () {
+            this.test("bar", function (assert) {
+                assert.that(x).is(1)("X should be one");
+                assert.that(y).is(2)("Y should be two");
+                x = 2;
+            });
+            
+            this.before(helpers.before);
+            this.after(helpers.after);
+            this.beforeAll(helpers.beforeAll);
+            this.afterAll(helpers.afterAll);
+            
+            this.test("baz", function (assert) {
+                assert.that(x).is(1)("The before should have restored X");
+            });
+        });
+        t.run();
+    });
+    asyncTest("Errors in the before are reported on each test", function () {
+        var t;
+        expect(3);
+        t = new Tyrtle({
+            callback : function () {
+                equal(this.passes, 2, "two should have passed.");
+                equal(this.fails, 2, "two should have failed.");
+                equal(this.errors, 2, "those two failures should have been from errors.");
+                start();
+            }
+        });
+        t.module("foo", function () {
+            var x = 0;
+            this.before(function () {
+                if (++x % 2) {
+                    throw "an error";
+                }
+            });
+            this.test("a", function () {});
+            this.test("b", function () {});
+            this.test("c", function () {});
+            this.test("d", function () {});
+        });
+        t.run();
+    });
+    asyncTest("Errors in the after are reported on each test", function () {
+        var t;
+        expect(3);
+        t = new Tyrtle({
+            callback : function () {
+                equal(this.passes, 2, "two should have passed.");
+                equal(this.fails, 2, "two should have failed.");
+                equal(this.errors, 2, "those two failures should have been from errors.");
+                start();
+            }
+        });
+        t.module("foo", function () {
+            var x = 0;
+            this.after(function () {
+                if (++x % 2) {
+                    throw "an error";
+                }
+            });
+            this.test("a", function () {});
+            this.test("b", function () {});
+            this.test("c", function () {});
+            this.test("d", function () {});
+        });
+        t.run();
+    });
+    asyncTest("Errors in the beforeAll are reported on all tests", function () {
+        var t, count = 0;
+        expect(4);
+        t = new Tyrtle({
+            callback : function () {
+                equal(count, 0, "No tests should have been actually executed");
+                equal(this.passes, 0, "none should have passed.");
+                equal(this.fails, 4, "all  should have failed.");
+                equal(this.errors, 4, "those failures should have been from errors.");
+                start();
+            }
+        });
+        t.module("foo", function () {
+            /*jslint white: false */
+            this.beforeAll(function () {
+                throw "an error";
+            });
+            this.test("a", function () { ++count; });
+            this.test("b", function () { ++count; });
+            this.test("c", function () { ++count; });
+            this.test("d", function () { ++count; });
+            /*jslint white: true */
+        });
+        t.run();
+    });
+    asyncTest("Errors in the afterAll are reported on the last test", function () {
+        var t;
+        expect(3);
+        t = new Tyrtle({
+            callback : function () {
+                equal(this.passes, 3, "the first three should have passed.");
+                equal(this.fails, 1, "the last should have failed.");
+                equal(this.errors, 1, "that failure should have been from an error.");
+                start();
+            }
+        });
+        t.module("foo", function () {
+            this.afterAll(function () {
+                throw "an error";
+            });
+            this.test("a", function () {});
+            this.test("b", function () {});
+            this.test("c", function () {});
+            this.test("d", function () {});
+        });
+        t.run();
+    });
+    test("Helpers can only be added once", function () {
+        var t = new Tyrtle();
+        raises(function () {
+            t.module('a', function () {
+                this.before(function () {});
+                this.before(function () {});
+            })
+        }, /already has a/);
+        raises(function () {
+            t.module('a', function () {
+                this.after(function () {});
+                this.after(function () {});
+            })
+        }, /already has a/);
+        raises(function () {
+            t.module('a', function () {
+                this.beforeAll(function () {});
+                this.beforeAll(function () {});
+            })
+        }, /already has a/);
+        raises(function () {
+            t.module('a', function () {
+                this.afterAll(function () {});
+                this.afterAll(function () {});
+            })
+        }, /already has a/);
     });
 });

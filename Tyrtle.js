@@ -91,6 +91,8 @@
         Tyrtle.setRenderer = function (renderer) {
             this.renderer = renderer;
         };
+        // a default renderer which clearly does nothing, provided so that we don't have to check each function exists
+        // when using it
         Tyrtle.renderer = {
             beforeRun    : noop,
             beforeModule : noop,
@@ -149,14 +151,45 @@
     // Module
     //
     (function () {
+        var addHelper, runHelper;
         Module = function (name, body) {
             this.name = name;
             this.tests = [];
+            this.helpers = {};
             body.call(this); // TODO: could provide a reduced api here
+        };
+        addHelper = function (name, fn) {
+            if (this.helpers[name]) {
+                throw new Error("This module already has a " + name + " helper function.");
+            }
+            this.helpers[name] = fn;
+        };
+        runHelper = function (helper, callback, catchBlock) {
+            if (helper) {
+                try {
+                    if (helper.length) {
+                        helper(function () {
+                            defer(callback);
+                        });
+                    } else {
+                        helper();
+                        callback();
+                    }
+                } catch (e) {
+                    if (catchBlock) {
+                        catchBlock(e);
+                    } else {
+                        throw e;
+                    }
+                }
+            } else {
+                callback();
+            }
         };
         extend(Module, {
             tests : null,   // array of tests
             tyrtle : null,  // reference to the owner Tyrtle instance
+            helpers : null, // object containing the (before|after)(All)? functions
             passes : 0,     // }
             fails : 0,      // } counts of the test results
             skips : 0,      // } 
@@ -165,18 +198,50 @@
             test : function (name, fn) {
                 this.tests.push(new Test(name, fn));
             },
+            before : function (fn) {
+                addHelper.call(this, 'before', fn);
+            },
+            after : function (fn) {
+                addHelper.call(this, 'after', fn);
+            },
+            beforeAll : function (fn) {
+                addHelper.call(this, 'beforeAll', fn);
+            },
+            afterAll : function (fn) {
+                addHelper.call(this, 'afterAll', fn);
+            },
             run : function (callback) {
                 var runNext,
                     i = -1,
                     l = this.tests.length,
+                    j, jl,
                     mod = this
                 ;
                 runNext = function () {
                     var test;
                     ++i;
-                    if (i === l) {
-                        // do the afterall
-                        defer(callback);
+                    if (i >= l) {
+                        runHelper(mod.helpers.afterAll, callback, function (e) {
+                            test = mod.tests[mod.tests.length - 1];
+                            if (test) {
+                                switch (test.status) {
+                                case PASS :
+                                    --mod.passes;
+                                    break;
+                                case SKIP :
+                                    --mod.skips;
+                                    break;
+                                case FAIL :
+                                    --mod.fails;
+                                }
+                                ++mod.fails;
+                                if (!test.error) {
+                                    ++mod.errors;
+                                    test.error = e;
+                                }
+                            }
+                            callback();
+                        });
                     } else {
                         test = mod.tests[i];
                         mod.runTest(test, function () {
@@ -198,14 +263,43 @@
                         });
                     }
                 };
-                runNext();
+                runHelper(this.helpers.beforeAll, runNext, function (e) {
+                    // mark all the tests as failed.
+                    for (j = 0, jl = mod.tests.length; j < jl; ++j) {
+                        Tyrtle.renderer.beforeTest(mod.tests[j], mod, mod.tyrtle);
+                        mod.tests[j].status = FAIL;
+                        mod.tests[j].error = e;
+                        Tyrtle.renderer.afterTest(mod.tests[j], mod, mod.tyrtle);
+                    }
+                    // set the group statistics
+                    mod.passes = mod.skips = 0;
+                    mod.fails = mod.errors = jl;
+                    i = l; // <-- so the 'runNext' function thinks it's done all the tests & will call the afterAll.
+                    runNext();
+                });
             },
             runTest : function (test, callback) {
-                var m = this, t = this.tyrtle;
+                var m = this, t = this.tyrtle, go, done;
                 Tyrtle.renderer.beforeTest(test, m, t);
-                test.run(function () {
+                go = function () {
+                    test.run(done);
+                };
+                done = function () {
                     Tyrtle.renderer.afterTest(test, m, t);
-                    callback();
+                    runHelper(m.helpers.after, callback, function (e) {
+                        test.status = FAIL;
+                        if (!test.error) {
+                            test.statusMessage = "Error in the after helper.";
+                            test.error = e;
+                        }
+                        callback();
+                    });
+                };
+                runHelper(this.helpers.before, go, function (e) {
+                    test.status = FAIL;
+                    test.statusMessage = "Error in the before helper.";
+                    test.error = e;
+                    done();
                 });
             },
             rerunTest : function (test, tyrtle) {
@@ -229,53 +323,38 @@
                 }
                 run = function () {
                     mod.runTest(test, function () {
-                        switch (test.status) {
-                        case PASS :
-                            ++mod.passes;
-                            ++tyrtle.passes;
-                            break;
-                        case FAIL :
-                            ++mod.fails;
-                            ++tyrtle.fails;
-                            if (test.error) {
-                                ++mod.errors;
-                                ++tyrtle.errors;
+                        var callback = function () {
+                            switch (test.status) {
+                            case PASS :
+                                ++mod.passes;
+                                ++tyrtle.passes;
+                                break;
+                            case FAIL :
+                                ++mod.fails;
+                                ++tyrtle.fails;
+                                if (test.error) {
+                                    ++mod.errors;
+                                    ++tyrtle.errors;
+                                }
+                                break;
+                            case SKIP :
+                                ++mod.skips;
+                                ++tyrtle.skips;
                             }
-                            break;
-                        case SKIP :
-                            ++mod.skips;
-                            ++tyrtle.skips;
-                        }
-                        // TODO
-                        if (false && mod.helpers.afterAll) {
-                            if (mod.helpers.afterAll.isAsync) {
-                                mod.helpers.afterAll(done);
-                            } else {
-                                mod.helpers.afterAll();
-                                done();
-                            }
-                        } else {
                             done();
-                        }
+                        };
+                        runHelper(mod.helpers.afterAll, callback, function (e) {
+                            test.status = FAIL;
+                            test.statusMessage = "Error in the afterAll helper";
+                            callback();
+                        });
                     });
                 };
                 done = function () {
                     Tyrtle.renderer.afterModule(mod, tyrtle);
                     Tyrtle.renderer.afterRun(tyrtle);
                 };
-                // TODO
-                if (false && this.helpers.beforeAll) {
-                    if (this.helpers.beforeAll.isAsync) {
-                        this.helpers.beforeAll(function () {
-                            defer(run);
-                        });
-                    } else {
-                        this.helpers.beforeAll();
-                        run();
-                    }
-                } else {
-                    run();
-                }
+                runHelper(this.helpers.beforeAll, run);
             }
         });
     }());
