@@ -461,10 +461,64 @@
     //  Assertions  //
     //////////////////
     (function () {
-        var AssertThat, fail, assertions, build;
-
+        var fail, assertions, build;
+        assertions = {
+            not : function (unexpected) {
+                return build(
+                    function (a, un) {
+                        return a !== un;
+                    },
+                    "Actual value matched the unexpected value {0}",
+                    this.actual,
+                    unexpected
+                );
+            },
+            ok : function () {
+                return build(
+                    function (a) {
+                        return a;
+                    },
+                    "Actual value {0} was not truthy as expected",
+                    this.actual
+                );
+            },
+            ofType : function (expectedType) {
+                // TODO: provide a way to override the fail message
+                return build(
+                    function (a, e) {
+                        var type = typeof a;
+                        if (type === 'function' && a.constructor === RegExp) {
+                            type = 'object';
+                        }
+                        return type === e;
+                    },
+                    "Type of value {0} was not {1} as expected",
+                    this.actual,
+                    expectedType
+                );
+            }
+        };
         assert = function (actual) {
-            return new AssertThat(actual);
+            var f = function (expected) {
+                return build(
+                    function (a, e) {
+                        return a === e;
+                    },
+                    "Actual value {0} did not match expected value {1}",
+                    f.actual,
+                    expected
+                );
+            };
+
+            each(assertions, function (fn, key) {
+                f[key] = function () {
+                    return fn.apply(f, arguments);
+                };
+            });
+
+            f.actual = actual;
+            f.is = f;
+            return f;
         };
         assert.that = assert;
 
@@ -484,42 +538,7 @@
             f.since = f;
             return f;
         };
-        AssertThat = function (actual) {
-            this.actual = actual;
-        };
-        assertions = {
-            is : function (expected) {
-                return build(
-                    function (a, e) {
-                        return a === e;
-                    },
-                    "Actual value {0} did not match expected value {1}",
-                    this.actual,
-                    expected
-                );
-            },
-            not : function (unexpected) {
-                return build(
-                    function (a, un) {
-                        return a !== un;
-                    },
-                    "Actual value matched the unexpected value {0}",
-                    this.actual,
-                    unexpected
-                );
-            }
-            //ofType : function (expectedType) {
-            //    // TODO: provide a way to override the fail message
-            //    this.actual = typeof this.actual;
-            //    return assertions.is.call(this, expectedType);
-            //}
-        };
-        each(assertions, function (fn, key) {
-            if (key !== 'is') {
-                assertions.is[key] = fn;
-            }
-        });
-        extend(AssertThat, assertions);
+
     }());
 
 //#JSCOVERAGE_IF

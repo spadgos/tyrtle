@@ -5,12 +5,31 @@
     tests.module("Tyrtle tests", function () {
         var skipCounter = 0;
 
-        this.test("Checking for equality", function (assert) {
-            var x = 3;
+        this.test("is and is not", function (assert) {
+            var x = 3, y;
+            // this demonstrates the different amounts of syntactic sugar you could use:
+            // here's the most:
             assert.that(x).is(3).since("x should be three");
-            assert.that(x).not('3').since("x should not be a string");
+            // .since is optional:
+            assert.that(x).is(3)("x should be three");
+            // .that is optional:
+            assert(x).is(3)("x should be three");
+            // .is is optional:
+            assert(x)(3)("x should be three");
+
+            // and again with another assertion (.not)
+            assert.that(x).is.not('3').since("x should not be a string");
+            // .since removed
+            assert.that(x).is.not('3')("x should not be a string");
+            // .that removed
+            assert(x).is.not('3')("x should not be a string");
+            // .is removed
+            assert(x).not('3')('x should not be a string');
+
+            assert.that(x).not(y)("x should not be undefined");
+            assert.that(x).is.not(y)("x should not be undefined when using `is`");
         });
-        this.test("Checking types", function (assert) {
+        this.test("ofType", function (assert) {
             this.skipIf(!assert().ofType, "ofType has not been implemented yet");
             var x;
             assert.that(3).is.ofType('number').since('3 should be a number');
@@ -22,6 +41,12 @@
             assert.that(x).is.ofType('undefined')('undefined variables are undefined');
             assert.that(function () {}).is.ofType('function')();
         });
+        this.test("ok", function (assert) {
+            assert(true).ok()("True should be ok");
+            assert.that(1).ok()("Non-zero numbers should be ok");
+            assert.that({}).is.ok()("All objects (even empty) are ok");
+        });
+
         this.test("Skip this test", function (assert) {
             this.skip("This test should be skipped.");
 
