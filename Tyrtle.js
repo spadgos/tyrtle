@@ -91,6 +91,14 @@
         Tyrtle.setRenderer = function (renderer) {
             this.renderer = renderer;
         };
+        Tyrtle.renderer = {
+            beforeRun    : noop,
+            beforeModule : noop,
+            beforeTest   : noop,
+            afterTest    : noop,
+            afterModule  : noop,
+            afterRun     : noop
+        };
         extend(Tyrtle, {
             passes : 0,
             fails : 0,
