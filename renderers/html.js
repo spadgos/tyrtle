@@ -23,13 +23,24 @@ Tyrtle.setRenderer(new (function () {
             return ++i;
         };
     }());
-    
+
     formatString = function (message) {
-        var args = Array.prototype.slice.call(arguments, 1),
+        var richText,
             argsRegex = /\{args\}/g,
             expandedArgs, i, l,
-            self = this
+            self = this,
+            args
         ;
+
+        if (typeof arguments[0] === "boolean") {
+            richText = arguments[0];
+            message = arguments[1];
+            args = Array.prototype.slice.call(arguments, 2);
+        } else {
+            richText = true;
+            args = Array.prototype.slice.call(arguments, 1);
+        }
+
         if (argsRegex.test(message)) {
             expandedArgs = [];
             for (i = 0, l = args.length; i < l; ++i) {
@@ -42,22 +53,25 @@ Tyrtle.setRenderer(new (function () {
             function (str, p1) {
                 var v = args[p1];
                 // TODO: this should be HtmlRenderer.prototype.formatVariable
-                return v === null
-                    ? "NULL"
-                    : (typeof v === "undefined"
-                       ? "UNDEFINED"
-                       : (v.toString ? v.toString() : String(v))
-                    )
+                return richText
+                    ? HtmlRenderer.prototype.formatVariable(v)
+                    : (v === null
+                        ? "NULL"
+                        : (typeof v === "undefined"
+                           ? "UNDEFINED"
+                           : (v.toString ? v.toString() : String(v))
+                        )
+                      )
                 ;
             }
         );
     };
 
     HtmlRenderer = function () {};
-
+    HtmlRenderer.prototype.templateString = formatString;
     HtmlRenderer.prototype.formatVariable = function (v) {
         var vType = typeof v, $out, str, id, ii, len, tmp;
-    
+
         $out = $("<span></span>")
             .addClass("variable")
         ;
@@ -94,9 +108,15 @@ Tyrtle.setRenderer(new (function () {
             if (window.console && (window.console.dir || window.console.log)) {
                 id = 'tyrtle_' + getUniqueId();
                 $out.attr('id', id).addClass('clickable');
-    
+
                 $('#' + id).live('click', function () {
-                    (window.console.dir || window.console.log).call(window.console, v);
+                    var log;
+                    if (window.console.dir && (vType === 'function' || (vType === 'array' && v.length === 0))) {
+                        log = window.console.log;
+                    } else {
+                        log = (window.console.dir || window.console.log);
+                    }
+                    log.call(window.console, v);
                 });
             }
         } else {
@@ -105,13 +125,13 @@ Tyrtle.setRenderer(new (function () {
         $out.addClass(vType).text(str);
         return $("<div></div>").append($out).html();
     };
-    
-    
+
+
     HtmlRenderer.prototype.beforeRun = function (tyrtle) {
         var $tags, i, l, $ticker, $link, renderer = this;
         if (!tyrtle.$container) {
             window.document.title = "Running tests...";
-    
+
             $link = $('#favicon');
             if (!$link.length) {
                 $link = $('<link></link>')
@@ -124,13 +144,13 @@ Tyrtle.setRenderer(new (function () {
                 ;
             }
             $link.attr('href', iconWait);
-    
+
             this.testsLeft = 0;
             for (i = 0, l = tyrtle.modules.length; i < l; ++i) {
                 this.testsLeft += tyrtle.modules[i].tests.length;
             }
             this.totalTests = this.testsLeft;
-    
+
             this.tickerTimeout = setInterval(function () {
                 var text = $ticker.text();
                 if (text.length === 3) {
@@ -140,10 +160,10 @@ Tyrtle.setRenderer(new (function () {
                 }
                 $ticker.text(text);
             }, 400);
-    
+
             $ticker = $("<span></span>");
             tyrtle.$status = $("<span>0%</span>");
-    
+
             tyrtle.$container = $("<div></div>")
                 .attr({
                     id : 'tyrtle'
@@ -176,12 +196,12 @@ Tyrtle.setRenderer(new (function () {
             );
         }
     };
-    
+
     HtmlRenderer.prototype.beforeModule = function (module, tyrtle) {
         var i, l;
         if (!module.$container) {
             module.$ul = $("<ul></ul>").addClass('tests').hide();
-    
+
             module.$container = $("<div></div>")
                 .addClass('mod pass')
                 .append(
@@ -193,7 +213,7 @@ Tyrtle.setRenderer(new (function () {
             ;
         }
     };
-    
+
     HtmlRenderer.prototype.beforeTest = function (test, module, tyrtle) {
         var consoleExists;
         if (!test.$container) {
@@ -232,10 +252,12 @@ Tyrtle.setRenderer(new (function () {
         }
         test.$container.addClass('pending');
     };
-    
+
     HtmlRenderer.prototype.afterTest = function (test, module, tyrtle) {
         var msg;
-        msg = test.statusMessage + (test.runTime !== -1 ? formatString(' {0}ms', test.runTime) : "");
+        msg = formatString(
+            test.statusMessage + (test.runTime !== -1 ? formatString(false, ' {0}ms', test.runTime) : "")
+        );
 
         if (test.error) {
             msg += formatString(' (<span class="thrownError">Error: {0}</span>)', test.error);
@@ -249,13 +271,13 @@ Tyrtle.setRenderer(new (function () {
     };
     HtmlRenderer.prototype.afterModule = function (mod, tyrtle) {
         var i, l, test, speedPercent, completePercent;
-    
+
         if (this.testsLeft) {
             this.testsLeft -= mod.tests.length;
             completePercent = Math.floor((this.totalTests - this.testsLeft) / this.totalTests * 100);
             //tyrtle.$status.text(completePercent + "%");
             //tyrtle.$status.text((new Array(completePercent + 1)).join("|"));
-    
+
             tyrtle.$status.text(
                 tyrtle.fails + "/" + (this.totalTests - this.testsLeft)
                 + " (" + completePercent + "%) "
@@ -269,6 +291,7 @@ Tyrtle.setRenderer(new (function () {
             .addClass(mod.fails === 0 ? "pass" : "fail")
             .children('.modinfo')
             .text(formatString(
+                false,
                 "{0} passed. {1} failed. {2} skipped",
                 mod.passes,
                 mod.fails,
@@ -276,7 +299,7 @@ Tyrtle.setRenderer(new (function () {
             ))
         ;
     };
-    
+
     HtmlRenderer.prototype.afterRun = function (tyrtle) {
         var statusMessage, $link;
         $link = $('#favicon').remove(); // firefox doesn't update the icon unless you remove it first...
@@ -285,6 +308,7 @@ Tyrtle.setRenderer(new (function () {
             .appendTo('head')
         ;
         statusMessage = formatString(
+            false,
             "{0}/{1}",
             tyrtle.fails,
             tyrtle.passes + tyrtle.skips + tyrtle.fails
@@ -297,7 +321,7 @@ Tyrtle.setRenderer(new (function () {
             tyrtle.$container.children('h1').children('span').text('');
         }
     };
-    
+
     iconPass = "data:image/png;base64,"
              + "iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAABGdBTUEAAK/INwWK6QAAABl0RVh0"
              + "U29mdHdhcmUAQWRvYmUgSW1hZ2VSZWFkeXHJZTwAAAKfSURBVDjLpZPrS1NhHMf9O3bOdmwDCWRE"

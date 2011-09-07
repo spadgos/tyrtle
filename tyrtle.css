@@ -12,7 +12,7 @@ a {
     color: #999;
 }
 a:hover {
-    color: #f90;    
+    color: #f90;
 }
 .tools {
     margin-bottom: 10px;
@@ -83,4 +83,33 @@ background: linear-gradient(left, rgba(226,181,181,1) 83%,rgba(168,0,0,1) 100%);
 }
 li.fail > .testname {
     color: red;
+}
+.variable {
+    font-family: Consolas, monospace;
+    font-size: 9pt;
+    background-color: #ffb;
+    padding: 0 .2em;
+}
+.variable.clickable {
+    border-bottom: 1px dotted #aaa;
+    cursor: pointer;
+}
+.variable.clickable:hover {
+    border-bottom-color: #f90;
+}
+.variable.number {
+    color: #a00;
+}
+.variable.string:before,
+.variable.string:after {
+    content: '"';
+    color: grey;
+}
+.variable.null,
+.variable.undefined {
+    color: grey;
+    font-style: italic;
+}
+.variable.regexp {
+    color: green;
 }

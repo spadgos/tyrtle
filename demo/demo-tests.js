@@ -1,4 +1,4 @@
-/*globals Tyrtle */
+/*globals Tyrtle, document */
 (function () {
     var tests = new Tyrtle();
 
@@ -79,6 +79,32 @@
         });
         this.test("Not should reject identical variables", function (assert) {
             assert.that(3).not(3).since("Two identical objects should be the same");
+        });
+        this.test("Demonstrating the variable logging: Number, String", function (assert) {
+            assert(3)("a string")();
+        });
+        this.test("Demonstrating the variable logging: Array, Object", function (assert) {
+            assert(['a', 'b', 'c'])({a : 'A', b : ['b'], c : {see : 'C'}})();
+        });
+        this.test("Demonstrating the variable logging: DOM Element", function (assert) {
+            this.skipIf(!document || !document.createElement, "This test can only run in a browser");
+            var d = document.createElement('div');
+            d.setAttribute('id', 'someId');
+            d.className = 'classA classB';
+            assert(d).not(d)();
+        });
+        this.test("Demonstrating the variable logging: Null, Undefined", function (assert) {
+            var x;
+            assert(null)(x)();
+        });
+        this.test("Demonstrating the variable logging: Function, Date", function (assert) {
+            function f(a, b) {
+                return a + b;
+            }
+            assert(f)(new Date())();
+        });
+        this.test("Demonstrating the variable logging: RegExp", function (assert) {
+            assert(/ab+c/g)(/d*e.\.f{3,4}/im)();
         });
     });
     tests.module("Tests which have asynchronous before helpers", function () {

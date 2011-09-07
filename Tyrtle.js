@@ -116,12 +116,15 @@
         // a default renderer which clearly does nothing, provided so that we don't have to check each function exists
         // when using it
         Tyrtle.renderer = {
-            beforeRun    : noop,
-            beforeModule : noop,
-            beforeTest   : noop,
-            afterTest    : noop,
-            afterModule  : noop,
-            afterRun     : noop
+            beforeRun      : noop,
+            beforeModule   : noop,
+            beforeTest     : noop,
+            afterTest      : noop,
+            afterModule    : noop,
+            afterRun       : noop,
+            templateString : function (message) {
+                return message;
+            }
         };
         extend(Tyrtle, {
             passes : 0,
@@ -449,8 +452,11 @@
 
     AssertionError = function (msg, args, userMessage) {
         this.name = "AssertionError";
-        this.message = msg + (userMessage ? ": " + userMessage : "");
-        this.args = args;
+        this.message = Tyrtle.renderer.templateString.apply(
+            Tyrtle.renderer,
+            [msg + (userMessage ? ": " + userMessage : "")]
+            .concat(args)
+        );
     };
 
     SkipMe = function (reason) {
