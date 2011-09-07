@@ -2,7 +2,7 @@
 jQuery(function ($) {
     asyncTest("Basic empty tests are reported as success", function () {
         expect(4);
-        
+
         var t = new Tyrtle({
             callback : function () {
                 equal(this.passes, 1, "The test should have been marked as a pass.");
@@ -17,9 +17,34 @@ jQuery(function ($) {
         });
         t.run();
     });
+    asyncTest("Tests can be skipped always and conditionally", function () {
+        expect(4);
+
+        var t = new Tyrtle({
+            callback : function () {
+                equal(this.passes, 1, "The test should have been marked as a pass.");
+                equal(this.fails, 0, "No test should have failed");
+                equal(this.errors, 0, "No errors");
+                equal(this.skips, 2, "None skipped");
+                start();
+            }
+        });
+        t.module("tests", function () {
+            this.test("skip", function () {
+                this.skip();
+            });
+            this.test("skip if", function () {
+                this.skipIf(true);
+            });
+            this.test("skip if false", function () {
+                this.skipIf(false);
+            });
+        });
+        t.run();
+    });
     asyncTest("Errors are reported as failures", function () {
         expect(4);
-        
+
         var t = new Tyrtle({
             callback : function () {
                 equal(this.passes, 0, "Should not have passed");
@@ -63,7 +88,7 @@ jQuery(function ($) {
                         "There should not have been an error in test " + test.name
                     );
                 }
-                
+
                 start();
             }
         });
@@ -125,7 +150,7 @@ jQuery(function ($) {
                 /*jslint newcap: true */
             }
         });
-        
+
         helpers = {
             before : function () {
                 x = 1;
@@ -146,12 +171,12 @@ jQuery(function ($) {
                 assert.that(y).is(2)("Y should be two");
                 x = 2;
             });
-            
+
             this.before(helpers.before);
             this.after(helpers.after);
             this.beforeAll(helpers.beforeAll);
             this.afterAll(helpers.afterAll);
-            
+
             this.test("baz", function (assert) {
                 assert.that(x).is(1)("The before should have restored X");
             });
@@ -310,7 +335,7 @@ jQuery(function ($) {
         });
         t.run();
     });
-    
+
     asyncTest("Befores and afters are given callbacks only if asked for", function () {
         var t, sync, async;
         expect(12);
@@ -366,6 +391,23 @@ jQuery(function ($) {
                 assert.that(this.x).is(1)("the values should have been attached to the current scope");
                 assert.that(this.y).is(2)("more than one value should be able to be passed.");
             });
+        });
+        t.run();
+    });
+    asyncTest("Errors in asynchronous tests", function () {
+        var t;
+        expect(2);
+        t = new Tyrtle({
+            callback : function () {
+                equal(t.fails, 1, "Test should be failed");
+                equal(t.errors, 1, "Test should be errored");
+                start();
+            }
+        });
+        t.module("foo", function () {
+            this.test("a", function (callback) {
+                throw 'foo';
+            }, function (assert) {});
         });
         t.run();
     });

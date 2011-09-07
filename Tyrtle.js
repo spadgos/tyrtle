@@ -14,7 +14,6 @@
         SKIP = 2,
         extend,
         defer,
-        setDefer,
         noop,
         each
     ;
@@ -28,22 +27,21 @@
     };
     // defer
     (function () {
-        var legacyMethod, postMessageMethod;
-        /**
-         * The regular defer method using a 0ms setTimeout. In reality, this will be executed in 4-10ms.
-         */
-        legacyMethod = function (func) {
-            var args = Array.prototype.slice.call(arguments, 1);
-            setTimeout(args.length === 0 ? func : function () {
-                func.apply(func, args);
-            }, 0);
-        };
-        /**
-         * The postMessage defer method which will get executed as soon as the call stack has cleared.
-         * Credit to David Baron: http://dbaron.org/log/20100309-faster-timeouts
-         */
-        postMessageMethod = !root.postMessage
-            ? legacyMethod
+//#JSCOVERAGE_IF 0
+        defer = !root.postMessage
+            /**
+             * The regular defer method using a 0ms setTimeout. In reality, this will be executed in 4-10ms.
+             */
+            ? function (func) {
+                var args = Array.prototype.slice.call(arguments, 1);
+                setTimeout(args.length === 0 ? func : function () {
+                    func.apply(func, args);
+                }, 0);
+            }
+            /**
+             * The postMessage defer method which will get executed as soon as the call stack has cleared.
+             * Credit to David Baron: http://dbaron.org/log/20100309-faster-timeouts
+             */
             : (function () {
                 var timeouts = [], messageName = "zero-timeout-message", setZeroTimeout, handleMessage;
 
@@ -72,13 +70,7 @@
                 };
             }())
         ;
-        /**
-         * Override the current defer method. This should be only needed for testing of Tyrtle itself.
-         */
-        setDefer = function (forceLegacy) {
-            defer = forceLegacy ? legacyMethod : postMessageMethod;
-        };
-        setDefer(false);
+//#JSCOVERAGE_ENDIF
     }());
     noop = function () {};
     each = function (obj, iterator, context) {
@@ -109,9 +101,6 @@
         Tyrtle.SKIP = SKIP;
         Tyrtle.setRenderer = function (renderer) {
             this.renderer = renderer;
-        };
-        Tyrtle.useLegacyTimeouts = function (legacy) {
-            setDefer(legacy);
         };
         // a default renderer which clearly does nothing, provided so that we don't have to check each function exists
         // when using it
@@ -201,11 +190,7 @@
                         callback();
                     }
                 } catch (e) {
-                    if (catchBlock) {
-                        catchBlock(e);
-                    } else {
-                        throw e;
-                    }
+                    catchBlock(e);
                 }
             } else {
                 callback();
@@ -370,6 +355,7 @@
                         };
                         runHelper(mod.helpers.afterAll, callback, function (e) {
                             test.status = FAIL;
+                            test.error = e;
                             test.statusMessage = "Error in the afterAll helper";
                             callback();
                         });
@@ -379,7 +365,12 @@
                     Tyrtle.renderer.afterModule(mod, tyrtle);
                     Tyrtle.renderer.afterRun(tyrtle);
                 };
-                runHelper(this.helpers.beforeAll, run);
+                runHelper(this.helpers.beforeAll, run, function (e) {
+                    test.status = FAIL;
+                    test.error = e;
+                    test.statusMessage = "Error in the beforeAll helper";
+                    done();
+                });
             }
         });
     }());
