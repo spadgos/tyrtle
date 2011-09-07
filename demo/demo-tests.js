@@ -46,7 +46,35 @@
             assert.that(1).ok()("Non-zero numbers should be ok");
             assert.that({}).is.ok()("All objects (even empty) are ok");
         });
+        this.test("matches", function (assert) {
+            assert.that("abbbc").matches(/ab+c/)();
+        });
+        this.test("endsWith / startsWith / contains", function (assert) {
+            var a = assert.that("abcdef");
+            a.endsWith("def")();
+            a.endsWith("abcdef")();
+            a.startsWith("abc")();
+            a.startsWith("abcdef")();
+            a.contains("bcd")();
+            a.contains("abc")();
+            a.contains("abcdef")();
+        });
+        this.test("willThrow", function (assert) {
+            var a = assert.that(function () {
+                throw 'abc';
+            });
+            a.willThrow('abc')();
+            a.willThrow(/c/)();
 
+            a = assert.that(function () {
+                throw new Error('abc');
+            });
+            a.willThrow('abc')();
+            a.willThrow(/c/)();
+        });
+        this.test("wontThrow", function (assert) {
+            assert.that(function () {}).wontThrow()();
+        });
         this.test("Skip this test", function (assert) {
             this.skip("This test should be skipped.");
 
@@ -69,7 +97,7 @@
             assert.that(this.y).is(2)("y should be two");
         });
     });
-    tests.module("Failing assertions (these should all fail)", function () {
+    tests.module("Failing assertions (these should fail)", function () {
         this.test("Equality checking is strict", function (assert) {
             var x = 3;
             assert.that(x).is("3").since("Comparing to a string should fail");
@@ -80,30 +108,50 @@
         this.test("Not should reject identical variables", function (assert) {
             assert.that(3).not(3).since("Two identical objects should be the same");
         });
-        this.test("Demonstrating the variable logging: Number, String", function (assert) {
+        this.test("Matches", function (assert) {
+            assert.that("abbbc").matches(/^c/)();
+        });
+        this.test("Ok", function (assert) {
+            assert.that(false).ok()();
+        });
+        this.test("startsWith 1", function (assert) {
+            assert.that("abcdef").startsWith("bcdef")();
+        });
+        this.test("startsWith 2", function (assert) {
+            assert.that("abcdef").startsWith("abcdefg")();
+        });
+        this.test("endsWith 1", function (assert) {
+            assert.that("abcdef").endsWith("abcde")();
+        });
+        this.test("endsWith 2", function (assert) {
+            assert.that("abcdef").endsWith("abcdefg")();
+        });
+    });
+    tests.module("Demonstrating the variable logging (these should fail)", function () {
+        this.test("Number, String", function (assert) {
             assert(3)("a string")();
         });
-        this.test("Demonstrating the variable logging: Array, Object", function (assert) {
+        this.test("Array, Object", function (assert) {
             assert(['a', 'b', 'c'])({a : 'A', b : ['b'], c : {see : 'C'}})();
         });
-        this.test("Demonstrating the variable logging: DOM Element", function (assert) {
+        this.test("DOM Element", function (assert) {
             this.skipIf(!document || !document.createElement, "This test can only run in a browser");
             var d = document.createElement('div');
             d.setAttribute('id', 'someId');
             d.className = 'classA classB';
             assert(d).not(d)();
         });
-        this.test("Demonstrating the variable logging: Null, Undefined", function (assert) {
+        this.test("Null, Undefined", function (assert) {
             var x;
             assert(null)(x)();
         });
-        this.test("Demonstrating the variable logging: Function, Date", function (assert) {
+        this.test("Function, Date", function (assert) {
             function f(a, b) {
                 return a + b;
             }
             assert(f)(new Date())();
         });
-        this.test("Demonstrating the variable logging: RegExp", function (assert) {
+        this.test("RegExp", function (assert) {
             assert(/ab+c/g)(/d*e.\.f{3,4}/im)();
         });
     });

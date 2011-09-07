@@ -502,6 +502,86 @@
                     this.actual,
                     expectedType
                 );
+            },
+            /**
+             * Assert that a String matches a given regex
+             *
+             * @param  {RegExp} match The regular expression to match against
+             */
+            matches : function (match) {
+                return build(
+                    function (a, m) {
+                        return m.test(a);
+                    },
+                    "{0} does not match the expected {1}",
+                    this.actual,
+                    match
+                );
+            },
+            startsWith : function (needle) {
+                return build(
+                    function (a, n) {
+                        return a.length >= n.length && n === a.substr(0, n.length);
+                    },
+                    "Actual value {0} does not begin with {1} as expected",
+                    this.actual,
+                    needle
+                );
+            },
+            endsWith : function (needle) {
+                return build(
+                    function (a, n) {
+                        return a.length >= n.length && n === a.substr(-n.length);
+                    },
+                    "Actual value {0} does not end with {1} as expected",
+                    this.actual,
+                    needle
+                );
+            },
+            contains : function (needle) {
+                return build(
+                    function (a, n) {
+                        return a.indexOf(n) !== -1;
+                    },
+                    "Actual value {0} does not contain the expected substring {1}",
+                    this.actual,
+                    needle
+                );
+            },
+            willThrow : function (expectedError) {
+                return build(
+                    function (f) {
+                        try {
+                            f();
+                            return false;
+                        } catch (e) {
+                            if (expectedError) {
+                                if (typeof expectedError === 'string') {
+                                    return expectedError === e.message || e;
+                                } else if (expectedError instanceof RegExp) {
+                                    return expectedError.test(e.message || e);
+                                }
+                                return e instanceof expectedError;
+                            } else {
+                                return true;
+                            }
+                        }
+                    }
+                );
+            },
+            wontThrow : function () {
+                return build(
+                    function (f) {
+                        try {
+                            f();
+                            return true;
+                        } catch (e) {
+                            return false;
+                        }
+                    },
+                    "Function raised an error",
+                    this.actual
+                );
             }
         };
         assert = function (actual) {
@@ -531,7 +611,7 @@
         fail = function (message, args, userMessage) {
             throw new AssertionError(message, args, userMessage);
         };
-
+        // TODO: assertions need to be able to modify the message at run time
         build = function (condition, message) {
             var args = Array.prototype.slice.call(arguments, 2),
                 f
