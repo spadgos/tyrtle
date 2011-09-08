@@ -6,7 +6,7 @@
  * http://creativecommons.org/licenses/by-sa/3.0/
  */
 /*globals module */
-(function (root) {
+(function () {
     var Tyrtle, Module, Test, assert,
         AssertionError, SkipMe,
         PASS = 0,
@@ -15,8 +15,13 @@
         extend,
         defer,
         noop,
-        each
+        each,
+        root
     ;
+    // Gets the global object, regardless of whether run as ES3, ES5 or ES5 Strict Mode.
+    root = (function () {
+        return this || (0 || eval)('this');
+    }());
     extend = function (Cls, obj) {
         var i;
         for (i in obj) {
@@ -26,44 +31,40 @@
         }
     };
     // defer
-    (function () {
-//#JSCOVERAGE_IF 0
-        defer = !root.postMessage
-            /**
-             * The regular defer method using a 0ms setTimeout. In reality, this will be executed in 4-10ms.
-             */
-            ? setTimeout
-            /**
-             * The postMessage defer method which will get executed as soon as the call stack has cleared.
-             * Credit to David Baron: http://dbaron.org/log/20100309-faster-timeouts
-             */
-            : (function () {
-                var timeouts = [], messageName = "zero-timeout-message", setZeroTimeout, handleMessage;
+    defer = !root.postMessage
+        /**
+         * The regular defer method using a 0ms setTimeout. In reality, this will be executed in 4-10ms.
+         */
+        ? setTimeout
+        /**
+         * The postMessage defer method which will get executed as soon as the call stack has cleared.
+         * Credit to David Baron: http://dbaron.org/log/20100309-faster-timeouts
+         */
+        : (function () {
+            var timeouts = [], messageName = "zero-timeout-message", setZeroTimeout, handleMessage;
 
-                setZeroTimeout = function (fn) {
-                    timeouts.push(fn);
-                    root.postMessage(messageName, "*");
-                };
+            setZeroTimeout = function (fn) {
+                timeouts.push(fn);
+                root.postMessage(messageName, "*");
+            };
 
-                handleMessage = function (event) {
-                    if (event.source === root && event.data === messageName) {
-                        event.stopPropagation();
-                        if (timeouts.length > 0) {
-                            var fn = timeouts.shift();
-                            fn();
-                        }
+            handleMessage = function (event) {
+                if (event.source === root && event.data === messageName) {
+                    event.stopPropagation();
+                    if (timeouts.length > 0) {
+                        var fn = timeouts.shift();
+                        fn();
                     }
-                };
+                }
+            };
 
-                root.addEventListener("message", handleMessage, true);
+            root.addEventListener("message", handleMessage, true);
 
-                return function (func) {
-                    setZeroTimeout(func);
-                };
-            }())
-        ;
-//#JSCOVERAGE_ENDIF
-    }());
+            return function (func) {
+                setZeroTimeout(func);
+            };
+        }())
+    ;
     noop = function () {};
     each = function (obj, iterator, context) {
         if (obj !== null && typeof obj !== 'undefined') {
@@ -82,6 +83,8 @@
     // Tyrtle
     //
     (function () {
+        var runModule;
+
         Tyrtle = function (options) {
             options = options || {};
             this.modules = [];
@@ -115,12 +118,22 @@
             errors : 0,
             skips : 0,
             ////
+            /**
+             * Create a new test module and add it to this instance of Tyrtle
+             *
+             * @param  {String} name The name for this module
+             * @param  {Function} body The body of the module which can define tests, local variables and test helpers,
+             *                         like before, after, beforeAll and afterAll
+             */
             module : function (name, body) {
                 var m = new Module(name, body);
                 m.tyrtle = this;
                 this.modules.push(m);
             },
-            run : function (options) {
+            /**
+             * Execute the test suite.
+             */
+            run : function () {
                 var runNext,
                     i = -1,
                     l = this.modules.length,
@@ -135,7 +148,7 @@
                         tyrtle.callback();
                     } else {
                         mod = tyrtle.modules[i];
-                        tyrtle.runModule(mod, function () {
+                        runModule(mod, tyrtle, function () {
                             each(['passes', 'fails', 'errors', 'skips'], function (key) {
                                 tyrtle[key] += mod[key];
                             });
@@ -144,16 +157,16 @@
                     }
                 };
                 runNext();
-            },
-            runModule : function (mod, callback) {
-                var self = this;
-                Tyrtle.renderer.beforeModule(mod, this);
-                mod.run(function () {
-                    Tyrtle.renderer.afterModule(mod, self);
-                    callback();
-                });
             }
         });
+
+        runModule = function (mod, tyrtle, callback) {
+            Tyrtle.renderer.beforeModule(mod, tyrtle);
+            mod.run(function () {
+                Tyrtle.renderer.afterModule(mod, tyrtle);
+                callback();
+            });
+        };
     }());
     //
     // Module
@@ -632,5 +645,5 @@
     } else {
         root.Tyrtle = Tyrtle;
     }
-
+    extend = null;
 }(this));
