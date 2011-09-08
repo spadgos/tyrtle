@@ -32,12 +32,7 @@
             /**
              * The regular defer method using a 0ms setTimeout. In reality, this will be executed in 4-10ms.
              */
-            ? function (func) {
-                var args = Array.prototype.slice.call(arguments, 1);
-                setTimeout(args.length === 0 ? func : function () {
-                    func.apply(func, args);
-                }, 0);
-            }
+            ? setTimeout
             /**
              * The postMessage defer method which will get executed as soon as the call stack has cleared.
              * Credit to David Baron: http://dbaron.org/log/20100309-faster-timeouts
@@ -63,10 +58,7 @@
                 root.addEventListener("message", handleMessage, true);
 
                 return function (func) {
-                    var args = Array.prototype.slice.call(arguments, 1);
-                    setZeroTimeout(args.length === 0 ? func : function () {
-                        func.apply(func, args);
-                    });
+                    setZeroTimeout(func);
                 };
             }())
         ;
@@ -74,15 +66,14 @@
     }());
     noop = function () {};
     each = function (obj, iterator, context) {
-        if (obj === null || typeof obj === 'undefined') {
-            return;
-        }
-        if (Array.prototype.forEach && obj.forEach === Array.prototype.forEach) {
-            obj.forEach(iterator, context);
-        } else {
-            for (var key in obj) {
-                if (obj.hasOwnProperty(key)) {
-                    iterator.call(context, obj[key], key, obj);
+        if (obj !== null && typeof obj !== 'undefined') {
+            if (Array.prototype.forEach && obj.forEach === Array.prototype.forEach) {
+                obj.forEach(iterator, context);
+            } else {
+                for (var key in obj) {
+                    if (obj.hasOwnProperty(key)) {
+                        iterator.call(context, obj[key], key, obj);
+                    }
                 }
             }
         }
@@ -99,6 +90,9 @@
         Tyrtle.PASS = PASS;
         Tyrtle.FAIL = FAIL;
         Tyrtle.SKIP = SKIP;
+        Tyrtle.getRenderer = function () {
+            return this.renderer;
+        };
         Tyrtle.setRenderer = function (renderer) {
             this.renderer = renderer;
         };
@@ -312,8 +306,8 @@
                     done();
                 });
             },
-            rerunTest : function (test, tyrtle) {
-                var mod = this, run, done;
+            rerunTest : function (test, tyrtle, callback) {
+                var mod = this, run, complete;
                 switch (test.status) {
                 case PASS :
                     --this.passes;
@@ -323,6 +317,7 @@
                     --this.fails;
                     --tyrtle.fails;
                     if (test.error) {
+                        delete test.error;
                         --this.errors;
                         --tyrtle.errors;
                     }
@@ -333,7 +328,7 @@
                 }
                 run = function () {
                     mod.runTest(test, function () {
-                        var callback = function () {
+                        var aftersDone = function () {
                             switch (test.status) {
                             case PASS :
                                 ++mod.passes;
@@ -351,25 +346,32 @@
                                 ++mod.skips;
                                 ++tyrtle.skips;
                             }
-                            done();
+                            complete();
                         };
-                        runHelper(mod.helpers.afterAll, callback, function (e) {
+                        runHelper(mod.helpers.afterAll, aftersDone, function (e) {
                             test.status = FAIL;
                             test.error = e;
                             test.statusMessage = "Error in the afterAll helper";
-                            callback();
+                            aftersDone();
                         });
                     });
                 };
-                done = function () {
+                complete = function () {
                     Tyrtle.renderer.afterModule(mod, tyrtle);
                     Tyrtle.renderer.afterRun(tyrtle);
+                    if (callback) {
+                        callback();
+                    }
                 };
                 runHelper(this.helpers.beforeAll, run, function (e) {
                     test.status = FAIL;
                     test.error = e;
                     test.statusMessage = "Error in the beforeAll helper";
-                    done();
+                    ++mod.fails;
+                    ++tyrtle.fails;
+                    ++mod.errors;
+                    ++tyrtle.errors;
+                    complete();
                 });
             }
         });
@@ -484,9 +486,12 @@
                 return build(
                     function (a, e) {
                         var type = typeof a;
+//#JSCOVERAGE_IF typeof /a/ === 'function'
+                        // webkit incorrectly reports regexes as functions.
                         if (type === 'function' && a.constructor === RegExp) {
                             type = 'object';
                         }
+//#JSCOVERAGE_ENDIF
                         return type === e;
                     },
                     "Type of value {0} was not {1} as expected",
@@ -541,14 +546,14 @@
             },
             willThrow : function (expectedError) {
                 return build(
-                    function (f) {
+                    function (f, expectedError) {
                         try {
                             f();
                             return false;
                         } catch (e) {
                             if (expectedError) {
                                 if (typeof expectedError === 'string') {
-                                    return expectedError === e.message || e;
+                                    return expectedError === (e.message || e);
                                 } else if (expectedError instanceof RegExp) {
                                     return expectedError.test(e.message || e);
                                 }
@@ -557,7 +562,10 @@
                                 return true;
                             }
                         }
-                    }
+                    },
+                    "Function did not throw the expected error {1}",
+                    this.actual,
+                    expectedError
                 );
             },
             wontThrow : function () {

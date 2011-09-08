@@ -1,5 +1,7 @@
-/*globals jQuery, asyncTest, test, Tyrtle, Myrtle, equal, expect, start, raises */
+/*globals jQuery, asyncTest, test, Tyrtle, Myrtle, equal, expect, start, raises, ok, module */
 jQuery(function ($) {
+    module("Tyrtle");
+
     asyncTest("Basic empty tests are reported as success", function () {
         expect(4);
 
@@ -258,25 +260,108 @@ jQuery(function ($) {
         });
         t.run();
     });
-    asyncTest("Errors in the afterAll are reported on the last test", function () {
-        var t;
-        expect(3);
-        t = new Tyrtle({
-            callback : function () {
-                equal(this.passes, 3, "the first three should have passed.");
-                equal(this.fails, 1, "the last should have failed.");
-                equal(this.errors, 1, "that failure should have been from an error.");
-                start();
-            }
-        });
-        t.module("foo", function () {
+    // the following tests all share the same test module body
+    (function () {
+        var mod, shouldSkip, shouldPass;
+
+        mod = function () {
             this.afterAll(function () {
                 throw "an error";
             });
             this.test("a", function () {});
             this.test("b", function () {});
             this.test("c", function () {});
-            this.test("d", function () {});
+            this.test("d", function (assert) {
+                this.skipIf(shouldSkip);
+                assert.that(shouldPass).is.ok()();
+            });
+        };
+        asyncTest("Errors in the afterAll are reported on the last test", function () {
+            shouldSkip = false;
+            shouldPass = true;
+            var t;
+            expect(4);
+            t = new Tyrtle({
+                callback : function () {
+                    equal(this.passes, 3, "the first three should have passed.");
+                    equal(this.fails, 1, "the last should have failed.");
+                    equal(this.errors, 1, "that failure should have been from an error.");
+                    equal(this.skips, 0, "none should have skipped");
+                    start();
+                }
+            });
+            t.module("foo", mod);
+            t.run();
+        });
+        asyncTest("Errors in the afterAll are reported on the last test, even when it is skipped", function () {
+            shouldSkip = true;
+            var t;
+            expect(4);
+            t = new Tyrtle({
+                callback : function () {
+                    equal(this.passes, 3, "the first three should have passed.");
+                    equal(this.fails, 1, "the last should have failed.");
+                    equal(this.errors, 1, "that failure should have been from an error.");
+                    equal(this.skips, 0, "none should have skipped.");
+                    start();
+                }
+            });
+            t.module("foo", mod);
+            t.run();
+        });
+        asyncTest("Errors in the afterAll are reported on the last test, even when it has already failed", function () {
+            shouldSkip = false;
+            shouldPass = false;
+            var t;
+            expect(4);
+            t = new Tyrtle({
+                callback : function () {
+                    equal(this.passes, 3, "the first three should have passed.");
+                    equal(this.fails, 1, "the last should have failed.");
+                    equal(this.errors, 1, "that failure should have been from an error.");
+                    equal(this.skips, 0, "none should have skipped.");
+                    start();
+                }
+            });
+            t.module("foo", mod);
+            t.run();
+        });
+    }());
+    asyncTest("Errors in the before/afterAll are handled when rerunning tests", function () {
+        var t, afterError, beforeError;
+        expect(6);
+        t = new Tyrtle({
+            callback : function () {
+                var mod = t.modules[0],
+                    test = mod.tests[0]
+                ;
+                equal(t.passes, 1);
+                afterError = 'abc';
+                mod.rerunTest(test, t, function () {
+                    equal(t.fails, 1);
+                    equal(t.errors, 1);
+                    equal(test.error, 'abc');
+                    beforeError = 'def';
+                    mod.rerunTest(test, t, function () {
+                        equal(t.errors, 1, "Should have errored");
+                        equal(test.error, 'def');
+                        start();
+                    });
+                });
+            }
+        });
+        t.module("foo", function () {
+            this.test("a", function () {});
+            this.afterAll(function () {
+                if (afterError) {
+                    throw afterError;
+                }
+            });
+            this.beforeAll(function () {
+                if (beforeError) {
+                    throw beforeError;
+                }
+            });
         });
         t.run();
     });
@@ -408,6 +493,264 @@ jQuery(function ($) {
             this.test("a", function (callback) {
                 throw 'foo';
             }, function (assert) {});
+        });
+        t.run();
+    });
+    asyncTest("Errors in the asynchronous callback", function () {
+        var t;
+        expect(2);
+        t = new Tyrtle({
+            callback : function () {
+                equal(t.fails, 1);
+                equal(t.errors, 1);
+                start();
+            }
+        });
+        t.module('foo', function () {
+            this.test('a', function (callback) {
+                callback();
+            }, function (assert) {
+                throw 'abc';
+            });
+        });
+        t.run();
+    });
+    asyncTest("Tests can be re-run", function () {
+        var x = 0, t;
+        t = new Tyrtle({
+            callback : function () {
+                equal(t.fails, 1, "Test should have failed first time");
+                equal(t.passes, 0, "Test should not have passed first time");
+                x = 1;
+                t.modules[0].rerunTest(t.modules[0].tests[0], t, function () {
+                    equal(t.fails, 0, "Test should not have failed second time");
+                    equal(t.passes, 1, "Test should have passed second time");
+                    start();
+                });
+            }
+        });
+        t.module("foo", function () {
+            this.test("a", function (assert) {
+                assert.that(x).is(1)();
+            });
+        });
+        t.run();
+    });
+    asyncTest("Tests which had errors are reset after rerunning", function () {
+        var t, skip = false;
+        t = new Tyrtle({
+            callback : function () {
+                var mod = t.modules[0],
+                    test = mod.tests[0]
+                ;
+                equal(t.fails, 1, "test should have failed");
+                equal(t.errors, 1, "Test should have been marked as errored");
+                ok(test.error, "Test should have an error");
+                skip = true;
+                mod.rerunTest(test, t, function () {
+                    equal(t.fails, 0, "Failure should have cleared");
+                    equal(t.errors, 0, "Error should have cleared");
+                    equal(t.skips,  1);
+                    ok(!test.error, "No error should be on the test");
+                    skip = false;
+                    mod.rerunTest(test, t, function () {
+                        equal(t.fails, 1, "Test should fail again");
+                        equal(t.errors, 1, "Test should hav errored again");
+                        ok(test.error, "Test should store an error");
+                        start();
+                    });
+                });
+            }
+        });
+        t.module("foo", function () {
+            this.test('a', function () {
+                this.skipIf(skip);
+                throw 'abc';
+            });
+        });
+        t.run();
+    });
+    asyncTest("Custom renderers can be used", function () {
+        var t, r, noop, br, bm, bt, at, am, ar, ts, old = Tyrtle.getRenderer();
+        noop = function () {};
+        r = {
+            beforeRun : noop,
+            beforeModule : noop,
+            beforeTest : noop,
+            afterTest : noop,
+            afterModule : noop,
+            afterRun : noop,
+            templateString : function (s) {
+                return s;
+            }
+        };
+        br = Myrtle.spy(r, 'beforeRun');
+        bm = Myrtle.spy(r, 'beforeModule');
+        bt = Myrtle.spy(r, 'beforeTest');
+        at = Myrtle.spy(r, 'afterTest');
+        am = Myrtle.spy(r, 'afterModule');
+        ar = Myrtle.spy(r, 'afterRun');
+        ts = Myrtle.spy(r, 'templateString');
+
+        Tyrtle.setRenderer(r);
+
+        t = new Tyrtle({
+            callback : function () {
+                equal(br.callCount(), 1, "The beforeRun function was not called as often as expected.");
+                equal(bm.callCount(), 2, "The beforeModule function was not called as often as expected.");
+                equal(bt.callCount(), 4, "The beforeTest function was not called as often as expected.");
+                equal(at.callCount(), 4, "The afterTest function was not called as often as expected.");
+                equal(am.callCount(), 2, "The afterModule function was not called as often as expected.");
+                equal(ar.callCount(), 1, "The afterRun function was not called as often as expected.");
+                ok(ts.callCount() > 0, "The templateString function should have been used.");
+                t.modules[0].rerunTest(t.modules[0].tests[0], t, function () {
+                    equal(br.callCount(), 1, "Rerun: The beforeRun function was not called as often as expected.");
+                    equal(bm.callCount(), 2, "Rerun: The beforeModule function was not called as often as expected.");
+                    equal(bt.callCount(), 5, "Rerun: The beforeTest function was not called as often as expected.");
+                    equal(at.callCount(), 5, "Rerun: The afterTest function was not called as often as expected.");
+                    equal(am.callCount(), 3, "Rerun: The afterModule function was not called as often as expected.");
+                    equal(ar.callCount(), 2, "Rerun: The afterRun function was not called as often as expected.");
+                    start();
+                    Myrtle.releaseAll();
+                    Tyrtle.setRenderer(old);
+                });
+            }
+        });
+        t.module("a", function () {
+            this.test("aa", function () {});
+            this.test("ab", function () {});
+        });
+        t.module("b", function () {
+            this.test("ba", function () {});
+            this.test("bb", function (assert) {
+                assert(2 + 2)(5)();
+            });
+        });
+        t.run();
+    });
+    module("Assertions");
+    asyncTest("Tyrtle assertions", function () {
+        var t = new Tyrtle({
+            callback : function () {
+                equal(t.passes, t.modules[0].tests.length, "All tests should have passed in the first module");
+                equal(t.fails, t.modules[1].tests.length, "All tests should have failed in the second module");
+                start();
+            }
+        });
+        t.module("Passing tests", function () {
+            this.test("Passing tests", function (assert) {
+                var x = 3, undef, a, CustomError = function () {};
+                assert.that(x).is(3).since("x should be three");
+                assert.that(x).is(3)("x should be three");
+                assert(x).is(3)("x should be three");
+                assert(x)(3)("x should be three");
+
+                assert.that(x).is.not('3').since("x should not be a string");
+                assert.that(x).is.not('3')("x should not be a string");
+                assert(x).is.not('3')("x should not be a string");
+                assert(x).not('3')('x should not be a string');
+
+                assert.that(x).not(undef)("x should not be undefined");
+                assert.that(x).is.not(undef)("x should not be undefined when using `is`");
+
+                // ofType
+                assert.that(3).is.ofType('number').since('3 should be a number');
+                assert('3').ofType('string')('"3" should be a string');
+                assert.that({}).is.ofType('object')('{} is an object');
+                assert.that([]).is.ofType('object')('arrays are objects too');
+                assert.that(/a/).is.ofType('object')('regexes are objects');
+                assert.that(null).is.ofType('object')('strangely, null is an object');
+                assert.that(undef).is.ofType('undefined')('undefined variables are undefined');
+                assert.that(function () {}).is.ofType('function')();
+
+                // ok
+                assert(true).ok()("True should be ok");
+                assert.that(1).ok()("Non-zero numbers should be ok");
+                assert.that({}).is.ok()("All objects (even empty) are ok");
+
+                // matches
+                assert.that("abbbc").matches(/ab+c/)();
+
+                // endsWith
+                a = assert.that("abcdef");
+                a.endsWith("def")();
+                a.endsWith("abcdef")();
+                a.startsWith("abc")();
+                a.startsWith("abcdef")();
+                a.contains("bcd")();
+                a.contains("abc")();
+                a.contains("abcdef")();
+
+                // willThrow
+                a = assert.that(function () {
+                    throw 'abc';
+                });
+                a.willThrow('abc')();
+                a.willThrow(/c/)();
+
+                a = assert.that(function () {
+                    throw new Error('abc');
+                });
+                a.willThrow('abc')();
+                a.willThrow(/c/)();
+
+                assert.that(function () {
+                    throw 'abc';
+                }).willThrow()();
+                assert.that(function () {
+                    throw new CustomError();
+                }).willThrow(CustomError)();
+
+
+                // wontThrow
+                assert.that(function () {}).wontThrow()();
+            });
+        });
+        t.module("failing tests", function () {
+            this.test("Equality checking is strict", function (assert) {
+                var x = 3;
+                assert.that(x).is("3").since("Comparing to a string should fail");
+            });
+            this.test("Objects are tested for identity", function (assert) {
+                assert.that([]).is([]).since("Two different objects are not identical");
+            });
+            this.test("Not should reject identical variables", function (assert) {
+                assert.that(3).not(3).since("Two identical objects should be the same");
+            });
+            this.test("Matches", function (assert) {
+                assert.that("abbbc").matches(/^c/)();
+            });
+            this.test("Ok", function (assert) {
+                assert.that(false).ok()();
+            });
+            this.test("startsWith 1", function (assert) {
+                assert.that("abcdef").startsWith("bcdef")();
+            });
+            this.test("startsWith 2", function (assert) {
+                assert.that("abcdef").startsWith("abcdefg")();
+            });
+            this.test("endsWith 1", function (assert) {
+                assert.that("abcdef").endsWith("abcde")();
+            });
+            this.test("endsWith 2", function (assert) {
+                assert.that("abcdef").endsWith("abcdefg")();
+            });
+            this.test("willThrow", function (assert) {
+                assert.that(function () {}).willThrow()();
+            });
+            this.test("willThrow", function (assert) {
+                var CustomError = function () {},
+                    CustomError2 = function () {}
+                ;
+                assert.that(function () {
+                    throw new CustomError();
+                }).willThrow(CustomError2)();
+            });
+            this.test("wontThrow", function (assert) {
+                assert(function () {
+                    throw 'abc';
+                }).wontThrow()();
+            });
         });
         t.run();
     });

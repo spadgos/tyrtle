@@ -30,7 +30,6 @@
             assert.that(x).is.not(y)("x should not be undefined when using `is`");
         });
         this.test("ofType", function (assert) {
-            this.skipIf(!assert().ofType, "ofType has not been implemented yet");
             var x;
             assert.that(3).is.ofType('number').since('3 should be a number');
             assert('3').ofType('string')('"3" should be a string');
