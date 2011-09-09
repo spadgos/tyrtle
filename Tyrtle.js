@@ -478,7 +478,13 @@
             not : function (unexpected) {
                 return build(
                     function (a, un) {
-                        return a !== un;
+                        if (isNaN(a)) {
+                            return !isNaN(un);
+                        } else if (isNaN(un)) {
+                            return !isNaN(a);
+                        } else {
+                            return a !== un;
+                        }
                     },
                     "Actual value matched the unexpected value {0}",
                     this.actual,
@@ -598,9 +604,14 @@
         };
         assert = function (actual) {
             var f = function (expected) {
+                // `is`
                 return build(
                     function (a, e) {
-                        return a === e;
+                        if (isNaN(a)) {
+                            return isNaN(e);
+                        } else {
+                            return a === e;
+                        }
                     },
                     "Actual value {0} did not match expected value {1}",
                     f.actual,

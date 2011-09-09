@@ -653,6 +653,9 @@ jQuery(function ($) {
                 assert.that(x).not(undef)("x should not be undefined");
                 assert.that(x).is.not(undef)("x should not be undefined when using `is`");
 
+                assert.that(Math.sqrt(-1)).is(NaN)("Should be able to compare to NaN");
+                assert.that(Math.sqrt(4)).is.not(NaN)("Should be able to compare against NaN");
+
                 // ofType
                 assert.that(3).is.ofType('number').since('3 should be a number');
                 assert('3').ofType('string')('"3" should be a string');
@@ -700,7 +703,6 @@ jQuery(function ($) {
                 assert.that(function () {
                     throw new CustomError();
                 }).willThrow(CustomError)();
-
 
                 // wontThrow
                 assert.that(function () {}).wontThrow()();
