@@ -763,11 +763,17 @@ jQuery(function ($) {
             this.test("startsWith 2", function (assert) {
                 assert.that("abcdef").startsWith("abcdefg")();
             });
+            this.test("startsWith 3", function (assert) {
+                assert.that(123456).startsWith('123')();
+            });
             this.test("endsWith 1", function (assert) {
                 assert.that("abcdef").endsWith("abcde")();
             });
             this.test("endsWith 2", function (assert) {
                 assert.that("abcdef").endsWith("abcdefg")();
+            });
+            this.test("endsWith 3", function (assert) {
+                assert.that(123456).endsWith('456')();
             });
             this.test("willThrow 1", function (assert) {
                 assert.that(function () {}).willThrow()();

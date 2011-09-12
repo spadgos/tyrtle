@@ -169,11 +169,11 @@ Tyrtle.setRenderer(new (function () {
                     id : 'tyrtle'
                 })
                 .append($("<h1></h1>")
-                    .text(tyrtle.name || "Tyrtle test suite")
-                    .attr('title', "Click to run all tests")
-                    .click(function () {
-                        window.location.href = '?';
-                    })
+                    .append($('<a></a>')
+                        .text(tyrtle.name || "Tyrtle test suite")
+                        .attr('href', '?')
+                        .attr('title', "Click to run all tests")
+                    )
                     .append($ticker)
                 )
                 .appendTo(window.document.body)
@@ -200,17 +200,25 @@ Tyrtle.setRenderer(new (function () {
     HtmlRenderer.prototype.beforeModule = function (module, tyrtle) {
         var i, l;
         if (!module.$container) {
-            module.$ul = $("<ul></ul>").addClass('tests').hide();
+            module.$ul = $("<ul></ul>").addClass('tests');//.hide();
 
             module.$container = $("<div></div>")
                 .addClass('mod pass')
                 .append(
-                    $('<h2></h2>').text(module.name),
+                    $('<h2></h2>').append(
+                        $('<a></a>')
+                            .text(module.name)
+                            .attr('href', '?filter=' + encodeURIComponent(module.name))
+                    ),
                     $('<div></div>').addClass('modinfo').text("..."),
                     module.$ul
                 )
-                .appendTo(tyrtle.$container)
             ;
+            // set up all the containers for each test.
+            for (i = 0, l = module.tests.length; i < l; ++i) {
+                this.beforeTest(module.tests[i], module, tyrtle);
+            }
+            module.$container.appendTo(tyrtle.$container);
         }
     };
 
@@ -225,9 +233,9 @@ Tyrtle.setRenderer(new (function () {
                         .text(test.name + ": "),
                     $("<span></span>")
                         .addClass('message')
-                        .html("Running..."),
+                        .html("Pending..."),
                     $("<a></a>")
-                        .html("Rerun")
+                        .html(" Rerun")
                         .attr('href', '#')
                         .attr('title', "Run this test again")
                         .click(function (e) {

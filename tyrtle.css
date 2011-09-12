@@ -23,6 +23,10 @@ a:hover {
     font-size:80%;
     margin-right: .5em;
 }
+h1 > a,
+h2 > a {
+    color: #000;
+}
 .mod {
     clear: both;
     border: 1px solid #ccc;

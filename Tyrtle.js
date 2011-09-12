@@ -5,7 +5,7 @@
  * Licensed under the Creative Commons BY-SA License
  * http://creativecommons.org/licenses/by-sa/3.0/
  */
-/*globals module */
+/*globals module, window */
 (function () {
     var Tyrtle, Module, Test, assert,
         AssertionError, SkipMe,
@@ -16,16 +16,38 @@
         defer,
         noop,
         each,
+        isArray,
         isRegExp,
         getKeys,
         isEqual,
         isDate,
+        getParam,
         root
     ;
     // Gets the global object, regardless of whether run as ES3, ES5 or ES5 Strict Mode.
     root = (function () {
         return this || (0 || eval)('this');
     }());
+
+    getParam = (function () {
+        var urlParams;
+        return function (name) {
+            if (!urlParams) {
+                urlParams = (function () {
+                    var query, vars, out = {}, i, l, pair;
+                    query = window.location.search.substring(1);
+                    vars = query.split("&");
+                    for (i = 0, l = vars.length; i < l; ++i) {
+                        pair = vars[i].split("=");
+                        out[decodeURIComponent(pair[0])] = decodeURIComponent(pair[1]);
+                    }
+                    return out;
+                }());
+            }
+            return urlParams.hasOwnProperty(name) ? urlParams[name] : null;
+        };
+    }());
+
     extend = function (Cls, obj) {
         var i;
         for (i in obj) {
@@ -166,7 +188,7 @@
         aKeys = getKeys(a);
         bKeys = getKeys(b);
         // Different object sizes?
-        if (aKeys.length != bKeys.length) {
+        if (aKeys.length !== bKeys.length) {
             return false;
         }
         // Recursive comparison of contents.
@@ -181,6 +203,10 @@
     isDate = function (obj) {
         return !!(obj && obj.getTimezoneOffset && obj.setUTCFullYear);
     };
+
+    isArray = Array.isArray || function (obj) {
+        return Object.prototype.toString.call(obj) === '[object Array]';
+    };
     //
     // Tyrtle
     //
@@ -191,6 +217,16 @@
             options = options || {};
             this.modules = [];
             this.callback = options.callback || noop;
+            this.filter = options.filter === false
+                ? null
+                : (typeof options.filter === 'string'
+                   ? options.filter
+                   : (typeof window === 'undefined'
+                      ? null
+                      : getParam('filter')
+                     )
+                  )
+            ;
         };
         Tyrtle.PASS = PASS;
         Tyrtle.FAIL = FAIL;
@@ -250,12 +286,16 @@
                         tyrtle.callback();
                     } else {
                         mod = tyrtle.modules[i];
-                        runModule(mod, tyrtle, function () {
-                            each(['passes', 'fails', 'errors', 'skips'], function (key) {
-                                tyrtle[key] += mod[key];
+                        if (tyrtle.filter && mod.name !== tyrtle.filter) {
+                            runNext();
+                        } else {
+                            runModule(mod, tyrtle, function () {
+                                each(['passes', 'fails', 'errors', 'skips'], function (key) {
+                                    tyrtle[key] += mod[key];
+                                });
+                                defer(runNext);
                             });
-                            defer(runNext);
-                        });
+                        }
                     }
                 };
                 runNext();
@@ -561,8 +601,7 @@
         this.name = "AssertionError";
         this.message = Tyrtle.renderer.templateString.apply(
             Tyrtle.renderer,
-            [msg + (userMessage ? ": " + userMessage : "")]
-            .concat(args)
+            [msg + (userMessage ? ": " + userMessage : "")].concat(args)
         );
     };
 
@@ -574,8 +613,13 @@
     //  Assertions  //
     //////////////////
     (function () {
-        var fail, assertions, build;
+        var assertions, build;
         assertions = {
+            /**
+             * Assert that two values are not identical. Uses strict equality checking: `!==`.
+             *
+             * @param  {*} unexpected The value which should be different
+             */
             not : function (unexpected) {
                 return build(
                     function (a, un) {
@@ -585,11 +629,14 @@
                             return a !== un;
                         }
                     },
-                    "Actual value matched the unexpected value {0}",
+                    "Actual value was the same as the unexpected value {0}",
                     this.actual,
                     unexpected
                 );
             },
+            /**
+             * Assert that a value is truthy.
+             */
             ok : function () {
                 return build(
                     function (a) {
@@ -599,8 +646,25 @@
                     this.actual
                 );
             },
+            /**
+             * Assert the type of a variable.
+             *
+             * Allows some types additional to the built-in native types to simplify tests:
+             *
+             * - 'array'
+             * - 'date'
+             * - 'regexp'
+             *
+             *      assert.that(/foo/).is.ofType('regexp')();
+             *
+             * It is important to note however that asserting type 'object' will pass for all of these types
+             *
+             *     assert.that([]).is.ofType('object')();  // } these both
+             *     assert.that([]).is.ofType('array')();   // } work
+             *
+             * @param  {String} expectedType
+             */
             ofType : function (expectedType) {
-                // TODO: provide a way to override the fail message
                 return build(
                     function (a, e) {
                         var type = typeof a;
@@ -610,7 +674,16 @@
                             type = 'object';
                         }
 //#JSCOVERAGE_ENDIF
-                        return type === e;
+                        switch (e.toLowerCase()) {
+                        case 'array' :
+                            return isArray(a);
+                        case 'date' :
+                            return isDate(a);
+                        case 'regexp' :
+                            return isRegExp(a);
+                        default :
+                            return type === e;
+                        }
                     },
                     "Type of value {0} was not {1} as expected",
                     this.actual,
@@ -632,9 +705,20 @@
                     match
                 );
             },
+            /**
+             * Assert that the value is a string which starts with the given value.
+             *
+             * @param  {String} needle The value which should be at the start of subject.
+             */
             startsWith : function (needle) {
                 return build(
                     function (a, n) {
+                        if (typeof a !== 'string') {
+                            return [
+                                "Actual value {0} is of type {2}, therefore it can not start with {1} as expected",
+                                typeof a
+                            ];
+                        }
                         return a.length >= n.length && n === a.substr(0, n.length);
                     },
                     "Actual value {0} does not begin with {1} as expected",
@@ -645,6 +729,12 @@
             endsWith : function (needle) {
                 return build(
                     function (a, n) {
+                        if (typeof a !== 'string') {
+                            return [
+                                "Actual value {0} is of type {2}, therefore it can not start with {1} as expected",
+                                typeof a
+                            ];
+                        }
                         return a.length >= n.length && n === a.substr(-n.length);
                     },
                     "Actual value {0} does not end with {1} as expected",
@@ -667,22 +757,31 @@
                     function (f, expectedError) {
                         try {
                             f();
-                            return false;
+                            return "The function unexpectedly threw no errors";
                         } catch (e) {
                             if (expectedError) {
-                                if (typeof expectedError === 'string') {
-                                    return expectedError === (e.message || e);
-                                } else if (expectedError instanceof RegExp) {
-                                    return expectedError.test(e.message || e);
+                                if (typeof expectedError === 'string' && expectedError !== (e.message || e)
+                                    || (isRegExp(expectedError) && !expectedError.test(e.message || e))
+                                   ) {
+                                    return [
+                                        "An error {2} was thrown, but it did not match the expected error {1}",
+                                        e.message || e
+                                    ];
+                                } else if (typeof expectedError === 'function' && !(e instanceof expectedError)) {
+                                    return [
+                                        "An error {2} was thrown, but it was not an instance of {1} as expected",
+                                        e
+                                    ];
+                                } else {
+                                    return true;
                                 }
-                                return e instanceof expectedError;
                             } else {
                                 return true;
                             }
                         }
                     },
-                    "Function did not throw the expected error {1}",
-                    this.actual,
+                    "",
+                    this.actual, // a function
                     expectedError
                 );
             },
@@ -693,10 +792,10 @@
                             f();
                             return true;
                         } catch (e) {
-                            return false;
+                            return ["%1 {1}", e];
                         }
                     },
-                    "Function raised an error",
+                    "Function unexpectedly raised an error",
                     this.actual
                 );
             },
@@ -738,17 +837,31 @@
         };
         assert.that = assert;
 
-        fail = function (message, args, userMessage) {
-            throw new AssertionError(message, args, userMessage);
-        };
-        // TODO: assertions need to be able to modify the message at run time
         build = function (condition, message) {
             var args = Array.prototype.slice.call(arguments, 2),
                 f
             ;
             f = function (userMessage) {
-                if (!condition.apply({}, args)) {
-                    fail(message, args, userMessage);
+                var result = condition.apply({}, args),
+                    isArr
+                ;
+                // unless the result is exactly true
+                if (result !== true) {
+                    isArr = isArray(result);
+
+                    // if we have an array
+                    if (isArr) {
+                        // grab all but the first element and add that to the arguments
+                        args = args.concat(result.slice(1));
+                        // grab the first element and make that the error message
+                        result = result[0];
+                    }
+                    // if the result is a string, use that instead of the default
+                    if (typeof result === 'string') {
+                        // the default message can be inserted by using '%1' in the error
+                        message = result.replace(/%1/, message || '');
+                    }
+                    throw new AssertionError(message, args, userMessage);
                 }
             };
             f.since = f;
