@@ -16,6 +16,10 @@
         defer,
         noop,
         each,
+        isRegExp,
+        getKeys,
+        isEqual,
+        isDate,
         root
     ;
     // Gets the global object, regardless of whether run as ES3, ES5 or ES5 Strict Mode.
@@ -78,6 +82,104 @@
                 }
             }
         }
+    };
+//#JSCOVERAGE_IF 0
+    getKeys = Object.keys || function (obj) {
+        /*jslint newcap : false */
+        if (obj !== Object(obj)) {
+            throw new TypeError('Invalid object');
+        }
+        /*jslint newcap : true */
+
+        var keys = [], key;
+        for (key in obj) {
+            if (Object.prototype.hasOwnProperty.call(obj, key)) {
+                keys[keys.length] = key;
+            }
+        }
+        return keys;
+    };
+//#JSCOVERAGE_ENDIF
+
+    isRegExp = function (obj) {
+        return !!(obj && obj.test && obj.exec && (obj.ignoreCase || obj.ignoreCase === false));
+    };
+    /**
+    * This function is taken from Underscore.js 1.1.6
+    * (c) 2011 Jeremy Ashkenas, DocumentCloud Inc.
+    * http://documentcloud.github.com/underscore
+    */
+    isEqual = function (a, b) {
+        /*jslint eqeqeq: false */
+        var aKeys, atype, bKeys, btype, key;
+        // Check object identity.
+        if (a === b) {
+            return true;
+        }
+        // Different types?
+        atype = typeof(a);
+        btype = typeof(b);
+
+        if (atype !== btype) {
+            return false;
+        }
+        // Basic equality test (watch out for coercions).
+        if (a == b) {
+            return true;
+        }
+        // One is falsy and the other truthy.
+        if ((!a && b) || (a && !b)) {
+            return false;
+        }
+        // One of them implements an isEqual()?
+        if (a.isEqual) {
+            return a.isEqual(b);
+        }
+        if (b.isEqual) {
+            return b.isEqual(a);
+        }
+        // Check dates' integer values.
+        if (isDate(a) && isDate(b)) {
+            return a.getTime() === b.getTime();
+        }
+        // Both are NaN?
+        if (a !== a && b !== b) {
+            return false;
+        }
+        // Compare regular expressions.
+        if (isRegExp(a) && isRegExp(b)) {
+            return a.source     === b.source
+                && a.global     === b.global
+                && a.ignoreCase === b.ignoreCase
+                && a.multiline  === b.multiline
+            ;
+        }
+        // If a is not an object by this point, we can't handle it.
+        if (atype !== 'object') {
+            return false;
+        }
+        // Check for different array lengths before comparing contents.
+        if (a.length && (a.length !== b.length)) {
+            return false;
+        }
+        // Nothing else worked, deep compare the contents.
+        aKeys = getKeys(a);
+        bKeys = getKeys(b);
+        // Different object sizes?
+        if (aKeys.length != bKeys.length) {
+            return false;
+        }
+        // Recursive comparison of contents.
+        for (key in a) {
+            if (!(key in b) || !isEqual(a[key], b[key])) {
+                return false;
+            }
+        }
+        /*jslint eqeqeq: true */
+        return true;
+    };
+    isDate = function (obj) {
+        return !!(obj && obj.getTimezoneOffset && obj.setUTCFullYear);
     };
     //
     // Tyrtle
@@ -389,11 +491,10 @@
             }
         });
     }());
-
+    //
+    // Test
+    //
     (function () {
-        //
-        // Test
-        //
         Test = function (name, body, asyncFn) {
             this.name = name;
             this.body = body;
@@ -478,10 +579,8 @@
             not : function (unexpected) {
                 return build(
                     function (a, un) {
-                        if (isNaN(a)) {
-                            return !isNaN(un);
-                        } else if (isNaN(un)) {
-                            return !isNaN(a);
+                        if (a !== a && un !== un) {
+                            return false;
                         } else {
                             return a !== un;
                         }
@@ -494,7 +593,7 @@
             ok : function () {
                 return build(
                     function (a) {
-                        return a;
+                        return !!a;
                     },
                     "Actual value {0} was not truthy as expected",
                     this.actual
@@ -600,6 +699,14 @@
                     "Function raised an error",
                     this.actual
                 );
+            },
+            equals : function (object) {
+                return build(
+                    isEqual,
+                    "Actual value {0} did not match expected value {1} with object comparison.",
+                    this.actual,
+                    object
+                );
             }
         };
         assert = function (actual) {
@@ -607,8 +714,8 @@
                 // `is`
                 return build(
                     function (a, e) {
-                        if (isNaN(a)) {
-                            return isNaN(e);
+                        if (a !== a) {
+                            return e !== e;
                         } else {
                             return a === e;
                         }
@@ -647,7 +754,6 @@
             f.since = f;
             return f;
         };
-
     }());
 
 //#JSCOVERAGE_IF

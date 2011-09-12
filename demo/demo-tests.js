@@ -74,6 +74,39 @@
         this.test("wontThrow", function (assert) {
             assert.that(function () {}).wontThrow()();
         });
+        this.test("equals", function (assert) {
+            //object equality
+            assert
+                .that([1, 2, 3])
+                .equals([1, 2, 3])
+                ("Arrays did not compare")
+            ;
+            assert
+                .that(1)
+                .equals(1)
+                ("Numbers")
+            ;
+            assert
+                .that("abc")
+                .equals("abc")
+                ("Strings")
+            ;
+            assert
+                .that({a : 'b', c : 'd'})
+                .equals({a : 'b', c : 'd'})
+                ("Basic objects")
+            ;
+            assert
+                .that(/abc/gim)
+                .equals(/abc/mig)
+                ("Regular expressions")
+            ;
+            assert.that({a : {b : 'c'}, d : {e : [/f/]}})
+                .equals({a : {b : 'c'}, d : {e : [/f/]}})
+                ("Nested objects")
+            ;
+            assert.that(new Date(123456789)).equals(new Date(123456789))("Dates");
+        });
         this.test("Skip this test", function (assert) {
             this.skip("This test should be skipped.");
 

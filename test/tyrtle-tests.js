@@ -706,6 +706,32 @@ jQuery(function ($) {
 
                 // wontThrow
                 assert.that(function () {}).wontThrow()();
+
+                //object equality
+                assert
+                    .that([1, 2, 3])
+                    .equals([1, 2, 3])()
+                ;
+                assert
+                    .that(1)
+                    .equals(1)()
+                ;
+                assert
+                    .that("abc")
+                    .equals("abc")()
+                ;
+                assert
+                    .that({a : 'b', c : 'd'})
+                    .equals({a : 'b', c : 'd'})()
+                ;
+                assert
+                    .that(/abc/gim)
+                    .equals(/abc/mig)()
+                ;
+                assert.that({a : {b : 'c'}, d : {e : [/f/]}})
+                    .equals({a : {b : 'c'}, d : {e : [/f/]}})()
+                ;
+                assert.that(new Date(123456789)).equals(new Date(123456789))();
             });
         });
         t.module("failing tests", function () {
@@ -716,6 +742,9 @@ jQuery(function ($) {
             this.test("Objects are tested for identity", function (assert) {
                 assert.that([]).is([]).since("Two different objects are not identical");
             });
+            this.test("Different objects are different", function (assert) {
+                assert(['a', 'b', 'c'])({a : 'A', b : ['b'], c : {see : 'C'}})();
+            });
             this.test("Not should reject identical variables", function (assert) {
                 assert.that(3).not(3).since("Two identical objects should be the same");
             });
@@ -724,6 +753,9 @@ jQuery(function ($) {
             });
             this.test("Ok", function (assert) {
                 assert.that(false).ok()();
+            });
+            this.test("Not NaN", function (assert) {
+                assert(NaN).not(NaN)();
             });
             this.test("startsWith 1", function (assert) {
                 assert.that("abcdef").startsWith("bcdef")();
@@ -737,10 +769,10 @@ jQuery(function ($) {
             this.test("endsWith 2", function (assert) {
                 assert.that("abcdef").endsWith("abcdefg")();
             });
-            this.test("willThrow", function (assert) {
+            this.test("willThrow 1", function (assert) {
                 assert.that(function () {}).willThrow()();
             });
-            this.test("willThrow", function (assert) {
+            this.test("willThrow 2", function (assert) {
                 var CustomError = function () {},
                     CustomError2 = function () {}
                 ;
@@ -752,6 +784,15 @@ jQuery(function ($) {
                 assert(function () {
                     throw 'abc';
                 }).wontThrow()();
+            });
+            this.test("equals NaN", function (assert) {
+                assert(NaN).equals(NaN)();
+            });
+            this.test("equals array", function (assert) {
+                assert([3, 2, 1]).equals([1, 2, 3])();
+            });
+            this.test("equals of different types", function (assert) {
+                assert(3).equals('3')();
             });
         });
         t.run();
