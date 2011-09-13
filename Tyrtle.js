@@ -61,7 +61,9 @@
         /**
          * The regular defer method using a 0ms setTimeout. In reality, this will be executed in 4-10ms.
          */
-        ? setTimeout
+        ? function (fn) {
+            setTimeout(fn, 0);
+        }
         /**
          * The postMessage defer method which will get executed as soon as the call stack has cleared.
          * Credit to David Baron: http://dbaron.org/log/20100309-faster-timeouts
@@ -211,7 +213,7 @@
     // Tyrtle
     //
     (function () {
-        var runModule;
+        var runModule, emptyRenderer;
 
         Tyrtle = function (options) {
             options = options || {};
@@ -235,11 +237,16 @@
             return this.renderer;
         };
         Tyrtle.setRenderer = function (renderer) {
+            each(emptyRenderer, function (val, key) {
+                if (!(key in renderer)) {
+                    renderer[key] = val;
+                }
+            }, this);
             this.renderer = renderer;
         };
         // a default renderer which clearly does nothing, provided so that we don't have to check each function exists
         // when using it
-        Tyrtle.renderer = {
+        Tyrtle.renderer = emptyRenderer = {
             beforeRun      : noop,
             beforeModule   : noop,
             beforeTest     : noop,
@@ -760,21 +767,27 @@
                             return "The function unexpectedly threw no errors";
                         } catch (e) {
                             if (expectedError) {
-                                if (typeof expectedError === 'string' && expectedError !== (e.message || e)
-                                    || (isRegExp(expectedError) && !expectedError.test(e.message || e))
-                                   ) {
-                                    return [
-                                        "An error {2} was thrown, but it did not match the expected error {1}",
-                                        e.message || e
-                                    ];
+                                if (typeof expectedError === 'string') {
+                                    if (expectedError !== (e.message || e)) {
+                                        return [
+                                            "An error {2} was thrown, but it did not match the expected error {1}",
+                                            e.message || e
+                                        ];
+                                    }
+                                } else if (isRegExp(expectedError)) {
+                                    if (!expectedError.test(e.message || e)) {
+                                        return [
+                                            "An error {2} was thrown, but it did not match the expected error {1}",
+                                            e.message || e
+                                        ];
+                                    }
                                 } else if (typeof expectedError === 'function' && !(e instanceof expectedError)) {
                                     return [
                                         "An error {2} was thrown, but it was not an instance of {1} as expected",
                                         e
                                     ];
-                                } else {
-                                    return true;
                                 }
+                                return true;
                             } else {
                                 return true;
                             }
