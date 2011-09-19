@@ -1,18 +1,134 @@
 var Tyrtle = require('../Tyrtle'),
     renderer = require('../renderers/node'),
-    tests = require('./node-tests'),
-    t,
-    i, l
+    fs = require('fs'),
+    path = require('path'),
+    glob,
+    tests,
+    args = require('optimist')
+        .boolean("monochrome")
+        .describe("monochrome", "Output without any colors")
+        .boolean("only-errors")
+        .describe("only-errors", "Only show tests which fail")
+        .string("list")
+        .describe("list", "If this is set, then the files specified should contain a JSON object specifying the paths "
+            + "of other files to include"
+        )
+        .boolean('dry')
+        .alias('dry', 'dry-run')
+        .describe('dry', "Perform a dry run. In this mode, none of the test modules are loaded. Instead, a list of the "
+                  + "files which *would* have been loaded is displayed and the program exits. This is useful for "
+                  + "testing file-matching patterns")
+        .usage("[1] : $0 [options] [--] file [file [file ...]]\n"
+             + "[2] : $0 [options] --list fileList\n"
+             + "\n"
+             + "In method [1], wildcards can be used, eg: $0 *.test.js test.*.js\n"
+             + "To use recursive matching (through subdirectories) you will need to quote the strings,\n"
+             + "eg: $0 \"tests/**.js\" \"vendors/tests/**\""
+             + "\n"
+             + "In method [2], paths in the file list are relative to the list itself. Wildcard patterns can also be \n"
+             + "used inside a file list, however no extra quoting is required."
+        )
+        .wrap(80)
+        .check(function (args) {
+            // this function throws so that optimist doesn't print out the body of this function
+            if (args._.length === 0) {
+                if (!args.list && !args.pattern) {
+                    throw "";
+                }
+            } else if (args.list || args.pattern) {
+                throw "";
+            }
+        })
+        .argv,
+    color,
+    t, i, l,
+    loadFiles,
+    inp, inptext,
+    runTests,
+    oldCwd
 ;
+//console.log(args);
+//process.exit(0);
+
+renderer.setMonochrome(args.monochrome);
+renderer.onlyErrors = args['only-errors'];
 Tyrtle.setRenderer(renderer);
 
-t = new Tyrtle();
-
-if (Tyrtle.isArray(tests)) {
-    for (i = 0, l = tests.length; i < l; ++i) {
-        t.module(tests[i]);
+color = args.monochrome
+    ? function (col, s) {
+        return s;
     }
+    : (function () {
+        var c = {
+            red : '31',
+            white : '1;37'
+        };
+        return function (col, s) {
+            return '\u001b[' + c[col] + 'm' + s + '\u001b[0m';
+        };
+    }())
+;
+runTests = function () {
+    t = new Tyrtle();
+    var i, l, val, re_glob, newFiles, run = false;
+    re_glob = /[?*]/;
+    for (i = 0, l = loadFiles.length; i < l; ++i) {
+        val = loadFiles[i];
+        if (re_glob.test(val)) {
+            glob = glob || require('glob');
+            newFiles = glob.globSync(val);
+            loadFiles.push.apply(loadFiles, newFiles);
+            l += newFiles.length;
+        } else {
+            if (!(/^\.{0,2}\//.test(val))) {
+                val = process.cwd() + '/' + val;
+            }
+            if (args.dry) {
+                console.log(fs.realpathSync(val));
+            } else {
+                try {
+                    tests = require(val);
+                } catch (e) {
+                    console.error(
+                        color('red', "Could not load module ")
+                        + color('white', "%s"),
+                        val.replace(/\.js$/, '') + '.js'
+                    );
+                    continue;
+                }
+                run = true;
+                if (Tyrtle.isArray(tests)) {
+                    for (i = 0, l = tests.length; i < l; ++i) {
+                        t.module(tests[i]);
+                    }
+                } else {
+                    t.module(tests);
+                }
+            }
+        }
+    }
+    if (run) {
+        t.run();
+    }
+};
+
+
+if (args.list) {
+    oldCwd = process.cwd();
+    inp = fs.createReadStream(args.list); // TODO: handle the cwd
+    process.chdir(path.dirname(fs.realpathSync(args.list)));
+    inptext = "";
+
+    inp.setEncoding('utf8');
+    inp.on('data', function (data) {
+        inptext += data;
+    });
+    inp.on('end', function (close) {
+        loadFiles = JSON.parse(inptext);
+        runTests();
+        process.chdir(oldCwd);
+    });
 } else {
-    t.module(tests);
+    loadFiles = args._;
+    runTests();
 }
-t.run();
