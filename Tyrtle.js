@@ -257,6 +257,18 @@
                 return message;
             }
         };
+        /**
+         * Static method used when you do not have an instance of Tyrtle yet. Modules returned by this function must
+         * still be added to an instance of Tyrtle using Tyrtle.module()
+         *
+         * @param  {String} name The name of the module
+         * @param  {Function} body   The body function of the module
+         *
+         * @return {Module}
+         */
+        Tyrtle.module = function (name, body) {
+            return new Module(name, body);
+        };
         extend(Tyrtle, {
             passes : 0,
             fails : 0,
@@ -271,7 +283,17 @@
              *                         like before, after, beforeAll and afterAll
              */
             module : function (name, body) {
-                var m = new Module(name, body);
+                var m;
+                if (arguments.length === 1 && name instanceof Module) {
+                    m = name;
+                } else if (arguments.length === 1 && typeof name === 'object') {
+                    each(name, function (body, name) {
+                        this.module(name, body);
+                    }, this);
+                    return;
+                } else {
+                    m = new Module(name, body);
+                }
                 m.tyrtle = this;
                 this.modules.push(m);
             },
