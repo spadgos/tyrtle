@@ -425,6 +425,7 @@
                                 ++mod.skips;
                                 break;
                             }
+                            Tyrtle.renderer.afterTest(test, mod, mod.tyrtle);
                             defer(runNext);
                         });
                     }
@@ -451,7 +452,6 @@
                     test.run(done);
                 };
                 done = function () {
-                    Tyrtle.renderer.afterTest(test, m, t);
                     runHelper(m.helpers.after, callback, function (e) {
                         test.status = FAIL;
                         if (!test.error) {
@@ -881,6 +881,13 @@
             return f;
         };
     }());
+
+    // Export some of our helper functions too.
+    // They might be useful to someone!
+    Tyrtle.isArray  = isArray;
+    Tyrtle.isRegExp = isRegExp;
+    Tyrtle.isDate   = isDate;
+    Tyrtle.getKeys  = getKeys;
 
 //#JSCOVERAGE_IF
     if (typeof module !== 'undefined') {
