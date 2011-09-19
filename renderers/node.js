@@ -1,5 +1,7 @@
 var repeat,
     color,
+    monochrome,
+    colorful,
     colorVariable,
     Tyrtle = require('../Tyrtle'),
     Table = require('term-table'),
@@ -10,7 +12,7 @@ repeat = function (str, len) {
     var A = Array;
     return (new A(len + 1)).join(str);
 };
-color = (function () {
+colorful = (function () {
     var colors = {
         black: '30',
         dgray: '1;30',
@@ -34,9 +36,15 @@ color = (function () {
             str = bold;
             bold = false;
         }
-        return "\u001b[" + colors[colour] + "m" + str + "\u001b[0m";
+        return "\u001b[" + (bold ? "1;" : "") + colors[colour] + "m" + str + "\u001b[0m";
     };
 }());
+monochrome = function (colour, bold, str) {
+    return arguments[arguments.length - 1];
+};
+color = colorful;
+
+
 colorVariable = function (v) {
     var vType = typeof v, str, ii, len, tmp, colors;
     colors = {
@@ -79,6 +87,10 @@ colorVariable = function (v) {
 };
 
 module.exports = {
+    onlyErrors : false,
+    setMonochrome : function (mono) {
+        color = mono ? monochrome : colorful;
+    },
     beforeRun : function (ty) {
         table = new Table(8, 60, 6);
         table.columnDividers = true;
@@ -111,13 +123,15 @@ module.exports = {
             status = 'SKIP';
             str += ": " + test.statusMessage;
         }
-        lines = table.row(
-            '[ ' + color(col, status) + ' ]',
-            str,
-            test.status === Tyrtle.PASS ? test.runTime + "ms" : '-'
-            //color('dgray', test.runTime) + "ms"
-        );
-        this.rowOffset += lines;
+        if (!this.onlyErrors || test.status === Tyrtle.FAIL) {
+            lines = table.row(
+                '[ ' + color(col, status) + ' ]',
+                str,
+                test.status === Tyrtle.PASS ? test.runTime + "ms" : '-'
+                //color('dgray', test.runTime) + "ms"
+            );
+            this.rowOffset += lines;
+        }
         str = (m.passes + "/" + m.tests.length);
         console.log("\u001b[" + (this.rowOffset + 1) + "A"
             + "\u001b[" + (80 - str.length) + "C"
