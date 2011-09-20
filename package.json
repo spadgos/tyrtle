@@ -1,18 +1,18 @@
 {
-    "name" : "Myrtle",
-    "description" : "A mocking and unit test framework for browsers and node",
+    "name" : "Tyrtle",
+    "description" : "A unit test framework for browsers and node",
     "version" : "0.1.0",
-    "homepage" : "http://github.com/spadgos/myrtle/wiki",
+    "homepage" : "http://github.com/spadgos/tyrtle/wiki",
     "author" : {
         "name" : "Nick Fisher",
         "email" : "spadgos@gmail.com"
     },
     "repository" : {
         "type" : "git",
-        "url" : "https://github.com/spadgos/myrtle"
+        "url" : "https://github.com/spadgos/tyrtle"
     },
     "bugs" : {
-        "web" : "http://github.com/spadgos/myrtle/issues"
+        "web" : "http://github.com/spadgos/tyrtle/issues"
     },
     "dependencies" : {
         "optimist" : "0.2",

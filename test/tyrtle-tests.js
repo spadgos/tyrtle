@@ -1,4 +1,4 @@
-/*globals jQuery, asyncTest, test, Tyrtle, Myrtle, equal, expect, start, raises, ok, module */
+/*globals jQuery, asyncTest, test, Tyrtle, equal, expect, start, raises, ok, module */
 jQuery(function ($) {
     module("Tyrtle");
 
@@ -138,16 +138,15 @@ jQuery(function ($) {
     });
     asyncTest("Test helpers are executed properly", function () {
         expect(5);
-        var t, helpers, x, y;
+        var t, helpers, x, y, b = 0, a = 0, ba = 0, aa = 0;
         t = new Tyrtle({
             callback : function () {
                 /*jslint newcap: false */
                 equal(this.passes, 2, "All tests should have passed.");
-                equal(Myrtle(helpers, 'before').callCount(),    2, "The before should be run twice");
-                equal(Myrtle(helpers, 'after').callCount(),     2, "The after should be run twice");
-                equal(Myrtle(helpers, 'beforeAll').callCount(), 1, "The beforeAll should be run once");
-                equal(Myrtle(helpers, 'afterAll').callCount(),  1, "The afterAll should be run once");
-                Myrtle.releaseAll();
+                equal(b,  2, "The before should be run twice");
+                equal(a,  2, "The after should be run twice");
+                equal(ba, 1, "The beforeAll should be run once");
+                equal(aa, 1, "The afterAll should be run once");
                 start();
                 /*jslint newcap: true */
             }
@@ -156,17 +155,19 @@ jQuery(function ($) {
         helpers = {
             before : function () {
                 x = 1;
+                ++b;
             },
-            after : function () {},
+            after : function () {
+                ++a;
+            },
             beforeAll : function () {
                 y = 2;
+                ++ba;
             },
-            afterAll : function () {}
+            afterAll : function () {
+                ++aa;
+            }
         };
-        Myrtle.spy(helpers, "before");
-        Myrtle.spy(helpers, "beforeAll");
-        Myrtle.spy(helpers, "after");
-        Myrtle.spy(helpers, "afterAll");
         t.module("foo", function () {
             this.test("bar", function (assert) {
                 assert.that(x).is(1)("X should be one");
@@ -574,44 +575,56 @@ jQuery(function ($) {
         var t, r, noop, br, bm, bt, at, am, ar, ts, old = Tyrtle.getRenderer();
         noop = function () {};
         r = {
-            beforeRun : noop,
-            beforeModule : noop,
-            beforeTest : noop,
-            afterTest : noop,
-            afterModule : noop,
-            afterRun : noop,
+            beforeRun : function () {
+                ++br;
+            },
+            beforeModule : function () {
+                ++bm;
+            },
+            beforeTest : function () {
+                ++bt;
+            },
+            afterTest : function () {
+                ++at;
+            },
+            afterModule : function () {
+                ++am;
+            },
+            afterRun : function () {
+                ++ar;
+            },
             templateString : function (s) {
+                ++ts;
                 return s;
             }
         };
-        br = Myrtle.spy(r, 'beforeRun');
-        bm = Myrtle.spy(r, 'beforeModule');
-        bt = Myrtle.spy(r, 'beforeTest');
-        at = Myrtle.spy(r, 'afterTest');
-        am = Myrtle.spy(r, 'afterModule');
-        ar = Myrtle.spy(r, 'afterRun');
-        ts = Myrtle.spy(r, 'templateString');
-
+        br = bm
+           = bt
+           = at
+           = am
+           = ar
+           = ts
+           = 0
+        ;
         Tyrtle.setRenderer(r);
 
         t = new Tyrtle({
             callback : function () {
-                equal(br.callCount(), 1, "The beforeRun function was not called as often as expected.");
-                equal(bm.callCount(), 2, "The beforeModule function was not called as often as expected.");
-                equal(bt.callCount(), 4, "The beforeTest function was not called as often as expected.");
-                equal(at.callCount(), 4, "The afterTest function was not called as often as expected.");
-                equal(am.callCount(), 2, "The afterModule function was not called as often as expected.");
-                equal(ar.callCount(), 1, "The afterRun function was not called as often as expected.");
-                ok(ts.callCount() > 0, "The templateString function should have been used.");
+                equal(br, 1, "The beforeRun function was not called as often as expected.");
+                equal(bm, 2, "The beforeModule function was not called as often as expected.");
+                equal(bt, 4, "The beforeTest function was not called as often as expected.");
+                equal(at, 4, "The afterTest function was not called as often as expected.");
+                equal(am, 2, "The afterModule function was not called as often as expected.");
+                equal(ar, 1, "The afterRun function was not called as often as expected.");
+                ok(ts > 0, "The templateString function should have been used.");
                 t.modules[0].rerunTest(t.modules[0].tests[0], t, function () {
-                    equal(br.callCount(), 1, "Rerun: The beforeRun function was not called as often as expected.");
-                    equal(bm.callCount(), 2, "Rerun: The beforeModule function was not called as often as expected.");
-                    equal(bt.callCount(), 5, "Rerun: The beforeTest function was not called as often as expected.");
-                    equal(at.callCount(), 5, "Rerun: The afterTest function was not called as often as expected.");
-                    equal(am.callCount(), 3, "Rerun: The afterModule function was not called as often as expected.");
-                    equal(ar.callCount(), 2, "Rerun: The afterRun function was not called as often as expected.");
+                    equal(br, 1, "Rerun: The beforeRun function was not called as often as expected.");
+                    equal(bm, 2, "Rerun: The beforeModule function was not called as often as expected.");
+                    equal(bt, 5, "Rerun: The beforeTest function was not called as often as expected.");
+                    equal(at, 5, "Rerun: The afterTest function was not called as often as expected.");
+                    equal(am, 3, "Rerun: The afterModule function was not called as often as expected.");
+                    equal(ar, 2, "Rerun: The afterRun function was not called as often as expected.");
                     start();
-                    Myrtle.releaseAll();
                     Tyrtle.setRenderer(old);
                 });
             }

@@ -35,7 +35,7 @@
     //////////////////////////
     //  RUNTIME PARAMETERS  //
     //////////////////////////
-    (function () {
+    getParam = (function () {
         var urlParams, loadParams;
         loadParams = runningInNode
             ? function () {
@@ -556,6 +556,7 @@
                     });
                 };
                 complete = function () {
+                    Tyrtle.renderer.afterTest(test, mod, tyrtle);
                     Tyrtle.renderer.afterModule(mod, tyrtle);
                     Tyrtle.renderer.afterRun(tyrtle);
                     if (callback) {
