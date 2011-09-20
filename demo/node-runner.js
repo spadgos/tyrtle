@@ -46,9 +46,9 @@ var Tyrtle = require('../Tyrtle'),
     runTests,
     oldCwd
 ;
-console.log(require('optimist'));
-console.log(args);
-process.exit(0);
+//console.log(require('optimist'));
+//console.log(args);
+//process.exit(0);
 
 renderer.setMonochrome(args.monochrome);
 renderer.onlyErrors = args['only-errors'];

@@ -1,8 +1,8 @@
 {
     "name" : "Myrtle",
     "description" : "A mocking and unit test framework for browsers and node",
-    "version" : '0.1.0',
-    "homepage" : 'http://github.com/spadgos/myrtle/wiki',
+    "version" : "0.1.0",
+    "homepage" : "http://github.com/spadgos/myrtle/wiki",
     "author" : {
         "name" : "Nick Fisher",
         "email" : "spadgos@gmail.com"
