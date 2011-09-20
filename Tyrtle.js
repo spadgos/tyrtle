@@ -22,27 +22,42 @@
         isEqual,
         isDate,
         getParam,
-        root
+        root,
+        runningInNode
     ;
     // Gets the global object, regardless of whether run as ES3, ES5 or ES5 Strict Mode.
     root = (function () {
         return this || (0 || eval)('this');
     }());
 
-    getParam = (function () {
-        var urlParams;
+    runningInNode = typeof window === 'undefined';
+
+    //////////////////////////
+    //  RUNTIME PARAMETERS  //
+    //////////////////////////
+    (function () {
+        var urlParams, loadParams;
+        loadParams = runningInNode
+            ? function () {
+                // node parameters must be set up manually and passed to the Tyrtle constructor
+                // this is because a test harness may use its own command line parameters
+                urlParams = {};
+            }
+            : function () {
+                urlParams = {};
+                var query, vars, i, l, pair;
+                query = window.location.search.substring(1);
+                vars = query.split("&");
+                for (i = 0, l = vars.length; i < l; ++i) {
+                    pair = vars[i].split("=");
+                    urlParams[decodeURIComponent(pair[0])] = decodeURIComponent(pair[1]);
+                }
+            }
+        ;
         return function (name) {
             if (!urlParams) {
-                urlParams = (function () {
-                    var query, vars, out = {}, i, l, pair;
-                    query = window.location.search.substring(1);
-                    vars = query.split("&");
-                    for (i = 0, l = vars.length; i < l; ++i) {
-                        pair = vars[i].split("=");
-                        out[decodeURIComponent(pair[0])] = decodeURIComponent(pair[1]);
-                    }
-                    return out;
-                }());
+                loadParams();
+                loadParams = null;
             }
             return urlParams.hasOwnProperty(name) ? urlParams[name] : null;
         };

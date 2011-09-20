@@ -32,23 +32,23 @@ var Tyrtle = require('../Tyrtle'),
         .check(function (args) {
             // this function throws so that optimist doesn't print out the body of this function
             if (args._.length === 0) {
-                if (!args.list && !args.pattern) {
+                if (!args.list) {
                     throw "";
                 }
-            } else if (args.list || args.pattern) {
+            } else if (args.list) {
                 throw "";
             }
         })
         .argv,
     color,
-    t, i, l,
     loadFiles,
     inp, inptext,
     runTests,
     oldCwd
 ;
-//console.log(args);
-//process.exit(0);
+console.log(require('optimist'));
+console.log(args);
+process.exit(0);
 
 renderer.setMonochrome(args.monochrome);
 renderer.onlyErrors = args['only-errors'];
@@ -69,9 +69,21 @@ color = args.monochrome
     }())
 ;
 runTests = function () {
-    t = new Tyrtle();
-    var i, l, val, re_glob, newFiles, run = false;
-    re_glob = /[?*]/;
+    var i, l, val,
+        re_glob = /[?*]/,
+        newFiles,
+        run = false,
+        t,
+        options = {},
+        argKeys = Object.keys(args).forEach(function (key) {
+            if (!(/^(\$0|_)$/.test(key))) {
+                options[key] = args[key];
+            }
+        })
+    ;
+
+    t = new Tyrtle(options);
+
     for (i = 0, l = loadFiles.length; i < l; ++i) {
         val = loadFiles[i];
         if (re_glob.test(val)) {
