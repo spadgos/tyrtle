@@ -675,7 +675,7 @@
                         }
                     },
                     "Actual value was the same as the unexpected value {0}",
-                    this.actual,
+                    this.subject,
                     unexpected
                 );
             },
@@ -688,7 +688,7 @@
                         return !!a;
                     },
                     "Actual value {0} was not truthy as expected",
-                    this.actual
+                    this.subject
                 );
             },
             /**
@@ -731,7 +731,7 @@
                         }
                     },
                     "Type of value {0} was not {1} as expected",
-                    this.actual,
+                    this.subject,
                     expectedType
                 );
             },
@@ -746,7 +746,7 @@
                         return m.test(a);
                     },
                     "{0} does not match the expected {1}",
-                    this.actual,
+                    this.subject,
                     match
                 );
             },
@@ -767,7 +767,7 @@
                         return a.length >= n.length && n === a.substr(0, n.length);
                     },
                     "Actual value {0} does not begin with {1} as expected",
-                    this.actual,
+                    this.subject,
                     needle
                 );
             },
@@ -783,7 +783,7 @@
                         return a.length >= n.length && n === a.substr(-n.length);
                     },
                     "Actual value {0} does not end with {1} as expected",
-                    this.actual,
+                    this.subject,
                     needle
                 );
             },
@@ -793,7 +793,7 @@
                         return a.indexOf(n) !== -1;
                     },
                     "Actual value {0} does not contain the expected substring {1}",
-                    this.actual,
+                    this.subject,
                     needle
                 );
             },
@@ -832,7 +832,7 @@
                         }
                     },
                     "",
-                    this.actual, // a function
+                    this.subject, // a function
                     expectedError
                 );
             },
@@ -847,14 +847,14 @@
                         }
                     },
                     "Function unexpectedly raised an error",
-                    this.actual
+                    this.subject
                 );
             },
             equals : function (object) {
                 return build(
                     isEqual,
                     "Actual value {0} did not match expected value {1} with object comparison.",
-                    this.actual,
+                    this.subject,
                     object
                 );
             }
@@ -871,7 +871,7 @@
                         }
                     },
                     "Actual value {0} did not match expected value {1}",
-                    f.actual,
+                    f.subject,
                     expected
                 );
             };
@@ -882,7 +882,7 @@
                 };
             });
 
-            f.actual = actual;
+            f.subject = actual;
             f.is = f;
             return f;
         };
