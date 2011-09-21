@@ -246,3 +246,186 @@ asyncTest("Tyrtle assertions", function () {
     });
     t.run();
 });
+
+asyncTest("Custom assertions can be created", function () {
+    expect(5);
+    var t;
+    t = new Tyrtle({
+        callback : function () {
+            var tests = t.modules[0].tests;
+            equal(tests[0].status, Tyrtle.PASS, "The first test should have passed");
+            equal(tests[0].statusMessage, "Passed");
+
+            equal(tests[1].status, Tyrtle.FAIL, "The second test should have failed");
+            equal(tests[1].statusMessage, "Failed: 123 should be alphabetical");
+
+            equal(tests[2].status, Tyrtle.PASS, "The third test should have passed.");
+            start();
+        }
+    });
+    t.module("first", function () {
+        this.addAssertions({
+            alpha : function (subject) {
+                return (/^[a-z]+$/).test(subject);
+            }
+        });
+        this.addAssertions({
+            lessThan : function (subject, num) {
+                return subject < num;
+            }
+        });
+        this.test("letters", function (assert) {
+            assert.that("abc").is.alpha()("abc should be alphabetical");
+        });
+        this.test("numbers", function (assert) {
+            assert.that("123").is.alpha()("123 should be alphabetical"); // not..!
+        });
+        this.test("numbers 2", function (assert) {
+            assert.that(3).is.lessThan(4)("3 should be less than 4");
+        });
+    });
+    t.run();
+});
+
+asyncTest("Custom assertions are not shared between modules", function () {
+    expect(5);
+    var t;
+    t = new Tyrtle({
+        callback : function () {
+            start();
+        }
+    });
+    t.module("first", function () {
+        this.addAssertions({
+            alpha : function (subject) {
+                return (/^[a-z]+$/).test(subject);
+            }
+        });
+
+        this.test("letters", function (assert) {
+            equal(typeof assert.that('abc').is.alpha, 'function', "the assert object should have the custom fn");
+        });
+    });
+    t.module("second", function () {
+        this.addAssertions({
+            numeric : function (subject) {
+                return (/^\d+$/).test(subject);
+            }
+        });
+        this.test("numbers", function (assert) {
+            equal(typeof assert.that('123').is.numeric, 'function', "This function should have the custom fn");
+            equal(typeof assert.that('123').is.alpha, 'undefined', "The previous module's fn should not be here");
+        });
+    });
+    t.module("third", function () {
+        this.test("numbers", function (assert) {
+            equal(typeof assert.that('123').is.numeric, 'undefined', "The previous module's fn should not be here");
+            equal(typeof assert.that('123').is.alpha, 'undefined', "The previous module's fn should not be here");
+        });
+    });
+
+    t.run();
+});
+
+asyncTest("Custom assertions can override built-in assertions", function () {
+    var t;
+    expect(2);
+    t = new Tyrtle({
+        callback : function () {
+            equal(t.modules[0].tests[0].status, Tyrtle.PASS, "first test should have passed");
+            equal(t.modules[0].tests[1].status, Tyrtle.FAIL, "second test should have failed");
+            start();
+        }
+    });
+    t.module("first", function () {
+        this.addAssertions({
+            ok : function (subject) {
+                return subject === 'nickf';
+            }
+        });
+
+        this.test("ok", function (assert) {
+            assert.that('nickf').is.ok()("he's a cool guy!");
+        });
+        this.test("ok 2", function (assert) {
+            assert.that('you').is.ok()("you're not a cool guy!");
+        });
+    });
+    t.run();
+});
+asyncTest("Custom error messages with assertions", function () {
+    var t;
+    expect(2);
+    t = new Tyrtle({
+        callback : function () {
+            equal(t.modules[0].tests[0].statusMessage, "Failed: you is not nickf: you're not a cool guy!");
+            equal(t.modules[0].tests[1].statusMessage, "Failed: you is not nickf");
+            start();
+        }
+    });
+    t.module("first", function () {
+        this.addAssertions({
+            ok : function (subject) {
+                return subject === 'nickf' || "{0} is not nickf";
+            },
+            lessThan : function (subject, expected) {
+                return subject < expected || "{0} is not less than {1}";
+            }
+        });
+
+        this.test("ok", function (assert) {
+            assert.that('you').is.ok()("you're not a cool guy!");
+        });
+        this.test("ok 2", function (assert) {
+            assert.that('you').is.ok()();
+        });
+    });
+    t.run();
+});
+
+asyncTest("Custom assertions are reapplied to rerun functions", function () {
+    expect(10);
+    var t;
+    t = new Tyrtle({
+        callback : function () {
+            var mods = t.modules;
+            mods[0].rerunTest(mods[0].tests[0], t, function () {
+                mods[1].rerunTest(mods[1].tests[0], t, function () {
+                    mods[2].rerunTest(mods[2].tests[0], t, function () {
+                        start();
+                    });
+                });
+            });
+        }
+    });
+    t.module("first", function () {
+        this.addAssertions({
+            alpha : function (subject) {
+                return (/^[a-z]+$/).test(subject);
+            }
+        });
+
+        this.test("letters", function (assert) {
+            equal(typeof assert.that('abc').is.alpha, 'function', "the assert object should have the custom fn");
+        });
+    });
+    t.module("second", function () {
+        this.addAssertions({
+            numeric : function (subject) {
+                return (/^\d+$/).test(subject);
+            }
+        });
+        this.test("numbers", function (assert) {
+            equal(typeof assert.that('123').is.numeric, 'function', "This function should have the custom fn");
+            equal(typeof assert.that('123').is.alpha, 'undefined', "The previous module's fn should not be here");
+        });
+    });
+    t.module("third", function () {
+        this.test("numbers", function (assert) {
+            equal(typeof assert.that('123').is.numeric, 'undefined', "The previous module's fn should not be here");
+            equal(typeof assert.that('123').is.alpha, 'undefined', "The previous module's fn should not be here");
+        });
+    });
+
+    t.run();
+});

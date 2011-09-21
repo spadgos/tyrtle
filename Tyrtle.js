@@ -22,8 +22,10 @@
         isEqual,
         isDate,
         getParam,
+        setParams,
         root,
-        runningInNode
+        runningInNode,
+        moduleAssertions = null // the extra assertions added by an individual module
     ;
     // Gets the global object, regardless of whether run as ES3, ES5 or ES5 Strict Mode.
     root = (function () {
@@ -35,7 +37,7 @@
     //////////////////////////
     //  RUNTIME PARAMETERS  //
     //////////////////////////
-    getParam = (function () {
+    (function () {
         var urlParams, loadParams;
         loadParams = runningInNode
             ? function () {
@@ -54,12 +56,15 @@
                 }
             }
         ;
-        return function (name) {
+        getParam = function (name) {
             if (!urlParams) {
                 loadParams();
                 loadParams = null;
             }
             return urlParams.hasOwnProperty(name) ? urlParams[name] : null;
+        };
+        setParams = function (params) {
+            urlParams = params || {};
         };
     }());
 
@@ -269,9 +274,23 @@
             afterModule    : noop,
             afterRun       : noop,
             templateString : function (message) {
-                return message;
+                var args = [].slice.call(arguments, 1);
+                return message.replace(
+                    /\{([1-9][0-9]*|0)\}/g,
+                    function (str, p1) {
+                        var v = args[p1];
+                        return (v === null
+                            ? "NULL"
+                            : (typeof v === "undefined"
+                               ? "UNDEFINED"
+                               : (v.toString ? v.toString() : String(v))
+                            )
+                        );
+                    }
+                );
             }
         };
+        Tyrtle.setParams = setParams;
         /**
          * Static method used when you do not have an instance of Tyrtle yet. Modules returned by this function must
          * still be added to an instance of Tyrtle using Tyrtle.module()
@@ -358,7 +377,7 @@
     // Module
     //
     (function () {
-        var addHelper, runHelper;
+        var addHelper, runHelper, applyAssertions, cleanUpAssertions;
         Module = function (name, body) {
             this.name = name;
             this.tests = [];
@@ -389,15 +408,22 @@
                 callback();
             }
         };
+        applyAssertions = function (fnMap) {
+            moduleAssertions = fnMap;
+        };
+        cleanUpAssertions = function () {
+            moduleAssertions = null;
+        };
         extend(Module, {
-            tests : null,   // array of tests
-            tyrtle : null,  // reference to the owner Tyrtle instance
-            helpers : null, // object containing the (before|after)(All)? functions
-            passes : 0,     // }
-            fails : 0,      // } counts of the test results
-            skips : 0,      // }
-            errors : 0,     // }
-            //////////////////
+            tests : null,           // array of tests
+            tyrtle : null,          // reference to the owner Tyrtle instance
+            helpers : null,         // object containing the (before|after)(All)? functions
+            extraAssertions : null, // object holding custom assertions. Only populated if required.
+            passes : 0,             // }
+            fails : 0,              // } counts of the test results
+            skips : 0,              // }
+            errors : 0,             // }
+            //////////////////////////
             test : function (name, fn, assertionsFn) {
                 this.tests.push(new Test(name, fn, assertionsFn));
             },
@@ -413,6 +439,15 @@
             afterAll : function (fn) {
                 addHelper.call(this, 'afterAll', fn);
             },
+            addAssertions : function (fnMap) {
+                if (!this.extraAssertions) {
+                    this.extraAssertions = fnMap;
+                } else {
+                    each(fnMap, function (fn, name) {
+                        this.extraAssertions[name] = fn;
+                    }, this);
+                }
+            },
             run : function (callback) {
                 var runNext,
                     i = -1,
@@ -423,7 +458,8 @@
                 runNext = function () {
                     var test;
                     ++i;
-                    if (i >= l) {
+                    if (i >= l) { // we've done all the tests, break the loop.
+                        cleanUpAssertions();
                         runHelper(mod.helpers.afterAll, callback, function (e) {
                             test = mod.tests[mod.tests.length - 1];
                             if (test) {
@@ -467,6 +503,7 @@
                         });
                     }
                 };
+                applyAssertions(this.extraAssertions);
                 runHelper(this.helpers.beforeAll, runNext, function (e) {
                     // mark all the tests as failed.
                     for (j = 0, jl = mod.tests.length; j < jl; ++j) {
@@ -526,6 +563,7 @@
                     --tyrtle.skips;
                 }
                 run = function () {
+                    applyAssertions(mod.extraAssertions);
                     mod.runTest(test, function () {
                         var aftersDone = function () {
                             switch (test.status) {
@@ -559,6 +597,7 @@
                     Tyrtle.renderer.afterTest(test, mod, tyrtle);
                     Tyrtle.renderer.afterModule(mod, tyrtle);
                     Tyrtle.renderer.afterRun(tyrtle);
+                    cleanUpAssertions();
                     if (callback) {
                         callback();
                     }
@@ -609,8 +648,9 @@
                     callback(test);
                 };
                 handleError = function (e) {
+                    var message = (e && e.message) || String(e);
                     test.status = FAIL;
-                    test.statusMessage = "Failed: " + ((e && e.message) || String(e));
+                    test.statusMessage = "Failed" + (message ? ": " + message : "");
                     if (e instanceof SkipMe) {
                         test.status = SKIP;
                         test.statusMessage = "Skipped" + (e.message ? " because " + e.message : "");
@@ -646,7 +686,9 @@
         this.name = "AssertionError";
         this.message = Tyrtle.renderer.templateString.apply(
             Tyrtle.renderer,
-            [msg + (userMessage ? ": " + userMessage : "")].concat(args)
+            [
+                (msg || "") + (msg && userMessage ? ": " : "") + (userMessage || "")
+            ].concat(args)
         );
     };
 
@@ -714,7 +756,7 @@
                     function (a, e) {
                         var type = typeof a;
 //#JSCOVERAGE_IF typeof /a/ === 'function'
-                        // webkit incorrectly reports regexes as functions.
+                        // webkit (incorrectly?) reports regexes as functions.
                         if (type === 'function' && a.constructor === RegExp) {
                             type = 'object';
                         }
@@ -860,44 +902,58 @@
             }
         };
         assert = function (actual) {
-            var f = function (expected) {
+            var is;
+            is = function (expected) {
                 // `is`
                 return build(
                     function (a, e) {
-                        if (a !== a) {
+                        if (a !== a) { // NaN
                             return e !== e;
                         } else {
                             return a === e;
                         }
                     },
                     "Actual value {0} did not match expected value {1}",
-                    f.subject,
+                    is.subject,
                     expected
                 );
             };
-
+            // Copy the regular functions onto the new assertion object, importantly, binding them to the function.
+            // Without this binding, then it would be more difficult to reuse assertions like this:
+            //  var a = assert(x)(3);
+            //  a('foo');
+            //  a('bar');
             each(assertions, function (fn, key) {
-                f[key] = function () {
-                    return fn.apply(f, arguments);
+                is[key] = function () {
+                    return fn.apply(is, arguments);
+                };
+            });
+            // Copy the module-specific functions onto the assertion object
+            // The syntax for these is simpler than the built-in ones
+            each(moduleAssertions, function (fn, key) {
+                is[key] = function () {
+                    return build.apply(null, [fn, "", is.subject].concat([].slice.apply(arguments)));
                 };
             });
 
-            f.subject = actual;
-            f.is = f;
-            return f;
+            is.subject = actual;
+            is.is = is; // head hurts.
+            return is;
         };
         assert.that = assert;
 
-        build = function (condition, message) {
+        build = function (condition, message/*, args... */) {
             var args = Array.prototype.slice.call(arguments, 2),
-                f
+                since
             ;
-            f = function (userMessage) {
+            since = function (userMessage) {
                 var result = condition.apply({}, args),
                     isArr
                 ;
-                // unless the result is exactly true
-                if (result !== true) {
+                // success can be signalled by returning true, or returning nothing.
+                if (result === true || typeof result === 'undefined') {
+                    return; // success!
+                } else { // failure is signalled by any other value; typically false, a string or an array
                     isArr = isArray(result);
 
                     // if we have an array
@@ -915,8 +971,8 @@
                     throw new AssertionError(message, args, userMessage);
                 }
             };
-            f.since = f;
-            return f;
+            since.since = since;
+            return since;
         };
     }());
 
