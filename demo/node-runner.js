@@ -1,5 +1,5 @@
 var Tyrtle = require('../Tyrtle'),
-    renderer = require('../renderers/node'),
+    renderer,
     fs = require('fs'),
     path = require('path'),
     glob,
@@ -18,6 +18,8 @@ var Tyrtle = require('../Tyrtle'),
         .describe('dry', "Perform a dry run. In this mode, none of the test modules are loaded. Instead, a list of the "
                   + "files which *would* have been loaded is displayed and the program exits. This is useful for "
                   + "testing file-matching patterns")
+        .string('renderer')
+        .alias('renderer', 'r')['default']('renderer', 'node')
         .usage("[1] : $0 [options] [--] file [file [file ...]]\n"
              + "[2] : $0 [options] --list fileList\n"
              + "\n"
@@ -38,6 +40,25 @@ var Tyrtle = require('../Tyrtle'),
             } else if (args.list) {
                 throw "";
             }
+            if (args.renderer) {
+                try {
+                    if (/^\.{0,2}\//.test(args.renderer)) { // relative or absolute path given
+                        // load the path given
+                        console.log('wtf');
+                        renderer = require(args.renderer);
+                    } else {
+                        try {
+                            // load from the renderers folder
+                            renderer = require('../renderers/' + args.renderer);
+                        } catch (ee) {
+                            // try loading from node_modules or whatever
+                            renderer = require(args.renderer);
+                        }
+                    }
+                } catch (e) {
+                    throw "Renderer [" + args.renderer + "] not found";
+                }
+            }
         })
         .argv,
     color,
@@ -49,8 +70,9 @@ var Tyrtle = require('../Tyrtle'),
 //console.log(require('optimist'));
 //console.log(args);
 //process.exit(0);
-
-renderer.setMonochrome(args.monochrome);
+if (renderer.setMonochrome) {
+    renderer.setMonochrome(args.monochrome);
+}
 renderer.onlyErrors = args['only-errors'];
 Tyrtle.setRenderer(renderer);
 
@@ -81,7 +103,9 @@ runTests = function () {
             }
         })
     ;
-
+    options.callback = function () {
+        process.exit(t.fails);
+    };
     t = new Tyrtle(options);
 
     for (i = 0, l = loadFiles.length; i < l; ++i) {

@@ -1,15 +1,15 @@
 /*globals window, Tyrtle */
 //#JSCOVERAGE_IF 0
-if (typeof Tyrtle === 'undefined') {
-    throw "Tyrtle must be loaded before the renderer is added.";
-}
+
 if (typeof window === 'undefined') {
     throw "HTML renderer can only be used in a browser.";
 }
 if (typeof window.jQuery === 'undefined') {
     throw "jQuery is required for the HTML renderer.";
 }
-
+if (typeof Tyrtle === 'undefined') {
+    throw "Tyrtle must be loaded before the renderer is added.";
+}
 Tyrtle.setRenderer(new (function () {
     var iconPass, iconFail, iconWait, // base-64 favicon strings
         HtmlRenderer,
@@ -208,7 +208,7 @@ Tyrtle.setRenderer(new (function () {
                     $('<h2></h2>').append(
                         $('<a></a>')
                             .text(module.name)
-                            .attr('href', '?filter=' + encodeURIComponent(module.name))
+                            .attr('href', '?modFilter=' + encodeURIComponent(module.name))
                     ),
                     $('<div></div>').addClass('modinfo').text("..."),
                     module.$ul
@@ -233,7 +233,7 @@ Tyrtle.setRenderer(new (function () {
                         .text(test.name + ": "),
                     $("<span></span>")
                         .addClass('message')
-                        .html("Pending..."),
+                        .html("..."),
                     $("<a></a>")
                         .html(" Rerun")
                         .attr('href', '#')
@@ -242,6 +242,11 @@ Tyrtle.setRenderer(new (function () {
                             e.preventDefault();
                             module.rerunTest(test, tyrtle);
                         }),
+                    $("<a></a>")
+                        .html("Reload ")
+                        .attr('href', '?modFilter=' + encodeURIComponent(module.name)
+                                    + '&testFilter=' + encodeURIComponent(test.name))
+                        .attr('title', "Reload just this test"),
                     consoleExists
                         ? $("<a></a>")
                             .html("&#402;")

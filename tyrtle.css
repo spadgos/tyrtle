@@ -88,6 +88,9 @@ background: linear-gradient(left, rgba(226,181,181,1) 83%,rgba(168,0,0,1) 100%);
 li.fail > .testname {
     color: red;
 }
+li.pending {
+    color: #666;
+}
 .variable {
     font-family: Consolas, monospace;
     font-size: 9pt;

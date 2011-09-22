@@ -239,15 +239,19 @@
             options = options || {};
             this.modules = [];
             this.callback = options.callback || noop;
-            this.filter = options.filter === false
+            this.modFilter = options.modFilter === false
                 ? null
-                : (typeof options.filter === 'string'
-                   ? options.filter
-                   : (typeof window === 'undefined'
-                      ? null
-                      : getParam('filter')
-                     )
+                : (typeof options.modFilter === 'string'
+                   ? options.modFilter
+                   : getParam('modFilter')
                   )
+            ;
+            this.testFilter = options.testFilter === false
+                ? null
+                : (typeof options.testFilter === 'string'
+                   ? options.testFilter
+                   : getParam('testFilter')
+                 )
             ;
         };
         Tyrtle.PASS = PASS;
@@ -349,7 +353,7 @@
                         tyrtle.callback();
                     } else {
                         mod = tyrtle.modules[i];
-                        if (tyrtle.filter && mod.name !== tyrtle.filter) {
+                        if (tyrtle.modFilter && mod.name !== tyrtle.modFilter) {
                             runNext();
                         } else {
                             runModule(mod, tyrtle, function () {
@@ -483,24 +487,28 @@
                         });
                     } else {
                         test = mod.tests[i];
-                        mod.runTest(test, function () {
-                            switch (test.status) {
-                            case PASS :
-                                ++mod.passes;
-                                break;
-                            case FAIL :
-                                ++mod.fails;
-                                if (test.error) {
-                                    ++mod.errors;
+                        if (mod.tyrtle.testFilter && test.name !== mod.tyrtle.testFilter) {
+                            runNext();
+                        } else {
+                            mod.runTest(test, function () {
+                                switch (test.status) {
+                                case PASS :
+                                    ++mod.passes;
+                                    break;
+                                case FAIL :
+                                    ++mod.fails;
+                                    if (test.error) {
+                                        ++mod.errors;
+                                    }
+                                    break;
+                                case SKIP :
+                                    ++mod.skips;
+                                    break;
                                 }
-                                break;
-                            case SKIP :
-                                ++mod.skips;
-                                break;
-                            }
-                            Tyrtle.renderer.afterTest(test, mod, mod.tyrtle);
-                            defer(runNext);
-                        });
+                                Tyrtle.renderer.afterTest(test, mod, mod.tyrtle);
+                                defer(runNext);
+                            });
+                        }
                     }
                 };
                 applyAssertions(this.extraAssertions);
@@ -628,7 +636,8 @@
             status : null,
             statusMessage: '',
             runTime : -1,
-            error : null,
+            error : null,       // If an error (not an AssertionError is thrown it is stored here)
+            exception : null,   // Any thrown error is stored here (including AssertionErrors)
             asyncFn : null,
             ///////////////
             skip : function (reason) {
@@ -649,13 +658,16 @@
                 };
                 handleError = function (e) {
                     var message = (e && e.message) || String(e);
-                    test.status = FAIL;
-                    test.statusMessage = "Failed" + (message ? ": " + message : "");
                     if (e instanceof SkipMe) {
                         test.status = SKIP;
                         test.statusMessage = "Skipped" + (e.message ? " because " + e.message : "");
-                    } else if (!(e instanceof AssertionError)) {
-                        test.error = e;
+                    } else {
+                        test.status = FAIL;
+                        test.statusMessage = "Failed" + (message ? ": " + message : "");
+                        test.exception = e;
+                        if (!(e instanceof AssertionError)) {
+                            test.error = e;
+                        }
                     }
                     callback(test);
                 };
@@ -683,14 +695,30 @@
     }());
 
     AssertionError = function (msg, args, userMessage) {
-        this.name = "AssertionError";
         this.message = Tyrtle.renderer.templateString.apply(
             Tyrtle.renderer,
             [
                 (msg || "") + (msg && userMessage ? ": " : "") + (userMessage || "")
             ].concat(args)
         );
+        var newError = new Error(),
+            re_stack = /([^(\s]+\.js):(\d+):(\d+)/g
+        ;
+        this.temp = newError;
+        if (newError.stack) { // TODO: cross-browser implementation
+            this.stack = [];
+            each(newError.stack.match(re_stack), function (str) {
+                re_stack.lastIndex = 0;
+                var parts = re_stack.exec(str);
+                if (parts) {
+                    this.stack.push(parts.slice(1));
+                }
+            }, this);
+            this.stack = this.stack.slice(2);
+
+        }
     };
+    AssertionError.prototype.name = "AssertionError";
 
     SkipMe = function (reason) {
         this.message = reason;

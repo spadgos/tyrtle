@@ -172,7 +172,10 @@ module.exports = {
             assert(['a', 'b', 'c'])({a : 'A', b : ['b'], c : {see : 'C'}})();
         });
         this.test("DOM Element", function (assert) {
-            this.skipIf(!document || !document.createElement, "This test can only run in a browser");
+            this.skipIf(
+                typeof document === 'undefined' || !document.createElement,
+                "This test can only run in a browser"
+            );
             var d = document.createElement('div');
             d.setAttribute('id', 'someId');
             d.className = 'classA classB';
@@ -190,6 +193,10 @@ module.exports = {
         });
         this.test("RegExp", function (assert) {
             assert(/ab+c/g)(/d*e.\.f{3,4}/im)();
+        });
+        this.test("This test has a TypeError", function () {
+            var x = 0;
+            x();
         });
     },
     "This test takes a while" : function () {
