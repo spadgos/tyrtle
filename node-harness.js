@@ -29,14 +29,15 @@ args = require('optimist')
     .string('renderer')
     .alias('renderer', 'r')['default']('renderer', 'node')
     .usage("[1] : $0 [options] [--] file [file [file ...]]\n"
-         + "[2] : $0 [options] --list fileList\n"
+         + "[2] : $0 [options] --list fileList.json\n"
          + "\n"
          + "In method [1], wildcards can be used, eg: $0 *.test.js test.*.js\n"
          + "To use recursive matching (through subdirectories) you will need to quote the strings,\n"
-         + "eg: $0 \"tests/**.js\" \"vendors/tests/**\""
+         + "eg: $0 \"tests/**.js\" \"vendors/tests/**\"\n"
          + "\n"
-         + "In method [2], paths in the file list are relative to the list itself. Wildcard patterns can also be \n"
-         + "used inside a file list, however no extra quoting is required."
+         + "In method [2], specify a file containing an array of paths in JSON format. Paths in the\n"
+         + "file list are relative to the list itself. Wildcard patterns can also be used inside a\n"
+         + "file list, however no extra quoting is required."
     )
     .wrap(80)
     .check(function (args) {
