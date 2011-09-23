@@ -429,3 +429,43 @@ asyncTest("Custom assertions are reapplied to rerun functions", function () {
 
     t.run();
 });
+asyncTest("Expects assertions", function () {
+    var t = new Tyrtle({
+        callback : function () {
+            equal(t.modules[0].tests[0].status, Tyrtle.PASS);
+            equal(t.modules[0].tests[1].status, Tyrtle.PASS);
+
+            equal(t.modules[0].tests[2].status, Tyrtle.FAIL);
+            equal(t.modules[0].tests[3].status, Tyrtle.FAIL);
+            start();
+        }
+    });
+    t.module("foo", function () {
+        this.test("a", function (assert) {
+            assert(3).is(3)();
+            this.expect(2);
+            assert(3).is(3)();
+        });
+        this.test("b", function (done) {
+            this.expect(2);
+            done({ x : 1 });
+        }, function (assert) {
+            assert(this.x)(1)();
+            assert(this.x + 1)(2)();
+        });
+
+        this.test("c", function (assert) {
+            assert(3).is(3)();
+            this.expect(1);
+            assert(3).is(3)();
+        });
+        this.test("d", function (done) {
+            this.expect(3);
+            done({ x : 1 });
+        }, function (assert) {
+            assert(this.x)(1)();
+            assert(this.x + 1)(2)();
+        });
+    });
+    t.run();
+});

@@ -130,6 +130,17 @@
         });
     });
     tests.module("Failing assertions (these should fail)", function () {
+        this.test("Expectation failure", function (assert) {
+            this.expect(3);
+        });
+        this.test("Expectation failure in asynchronous test", function (done) {
+            this.expect(1);
+            setTimeout(done, 10);
+        }, function (assert) {
+            assert(3)(3)();
+            assert(4)(4)();
+        });
+        
         this.test("Equality checking is strict", function (assert) {
             var x = 3;
             assert.that(x).is("3").since("Comparing to a string should fail");

@@ -262,5 +262,45 @@ module.exports = {
             this.skipIf(y, "This test should only be run after the first test in this module.");
             assert.that(x).is(-666)("The beforeAll should not have run again.");
         });
+    },
+    "Custom assertions" : function () {
+        var Person, myPerson, otherPerson;
+        this.beforeAll(function () {
+            Person = function (name, age) {
+                this.name = name;
+                this.age = age;
+                this.friends = [];
+            };
+        });
+        this.before(function () {
+            myPerson = new Person('Alice', 25);
+            otherPerson = new Person('Zach', 16);
+        });
+        this.afterAll(function () {
+            Person = myPerson = otherPerson = null;
+        });
+
+        this.addAssertions({
+            adult : function (subject) {
+                return subject.age >= 18
+                    || ["Person {1} should be an adult, but is only {2}", subject.name, subject.age]
+                ;
+            },
+            friendsWith : function (subject, otherPerson) {
+                return subject.friends.indexOf(otherPerson) !== -1
+                    || ["{2} is not friends with {3} as was expected", subject.name, otherPerson.name]
+                ;
+            }
+        });
+
+        this.test("Alice (should fail)", function (assert) {
+            assert.that(myPerson).is.adult()("Alice should be an adult");
+            // this next one should fail
+            assert.that(myPerson).is.friendsWith(otherPerson)("Alice and Zach should be friends");
+        });
+
+        this.test("Zach (should fail)", function (assert) {
+            assert.that(otherPerson).is.adult()("Zach should be an adult");
+        });
     }
 };

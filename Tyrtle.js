@@ -25,7 +25,8 @@
         setParams,
         root,
         runningInNode,
-        moduleAssertions = null // the extra assertions added by an individual module
+        moduleAssertions = null, // the extra assertions added by an individual module
+        currentTestAssertions    // a counter for the number of assertions run in an individual test
     ;
     // Gets the global object, regardless of whether run as ES3, ES5 or ES5 Strict Mode.
     root = (function () {
@@ -627,11 +628,14 @@
     // Test
     //
     (function () {
+        var incorrectNumAssertions;
+
         Test = function (name, body, asyncFn) {
             this.name = name;
             this.body = body;
             this.asyncFn = asyncFn;
         };
+
         extend(Test, {
             status : null,
             statusMessage: '',
@@ -639,6 +643,7 @@
             error : null,       // If an error (not an AssertionError is thrown it is stored here)
             exception : null,   // Any thrown error is stored here (including AssertionErrors)
             asyncFn : null,
+            expectedAssertions : -1,
             ///////////////
             skip : function (reason) {
                 throw new SkipMe(reason);
@@ -647,6 +652,9 @@
                 if (condition) {
                     this.skip(reason);
                 }
+            },
+            expect : function (numAssertions) {
+                this.expectedAssertions = numAssertions;
             },
             run : function (callback) {
                 var start, success, handleError, test = this;
@@ -677,14 +685,28 @@
                         this.body(function (variables) {
                             variables = variables || {};
                             try {
+                                currentTestAssertions = 0; // this is incremented by the `since` function
                                 test.asyncFn.call(variables, assert);
+                                if (test.expectedAssertions !== -1) {
+                                    assert.that(currentTestAssertions)
+                                          .is(test.expectedAssertions)
+                                          ("Incorrect number of assertions made by this test.")
+                                    ;
+                                }
                                 success();
                             } catch (ee) {
                                 handleError(ee);
                             }
                         });
                     } else {
+                        currentTestAssertions = 0;
                         this.body(assert);
+                        if (test.expectedAssertions !== -1) {
+                            assert.that(currentTestAssertions)
+                                  .is(test.expectedAssertions)
+                                  ("Incorrect number of assertions made by this test.")
+                            ;
+                        }
                         success();
                     }
                 } catch (e) {
@@ -733,7 +755,7 @@
             /**
              * Assert that two values are not identical. Uses strict equality checking: `!==`.
              *
-             * @param  {*} unexpected The value which should be different
+             * @param {*} unexpected The value which should be different
              */
             not : function (unexpected) {
                 return build(
@@ -750,7 +772,7 @@
                 );
             },
             /**
-             * Assert that a value is truthy.
+             * Assert that a value is truthy, (`subject == true`)
              */
             ok : function () {
                 return build(
@@ -821,7 +843,7 @@
                 );
             },
             /**
-             * Assert that the value is a string which starts with the given value.
+             * Assert that the subject string starts with the given substring.
              *
              * @param  {String} needle The value which should be at the start of subject.
              */
@@ -841,12 +863,17 @@
                     needle
                 );
             },
+            /**
+             * Assert that the subject string ends with the given substring.
+             *
+             * @param  {String} needle
+             */
             endsWith : function (needle) {
                 return build(
                     function (a, n) {
                         if (typeof a !== 'string') {
                             return [
-                                "Actual value {0} is of type {2}, therefore it can not start with {1} as expected",
+                                "Actual value {0} is of type {2}, therefore it can not end with {1} as expected",
                                 typeof a
                             ];
                         }
@@ -857,16 +884,41 @@
                     needle
                 );
             },
+            /**
+             * Assert that a String or Array contains a substring or element. The test is performed using the `.indexOf`
+             * method of the subject, so it can actually apply to any object which implements this method.
+             *
+             * @param  {*} needle
+             */
             contains : function (needle) {
                 return build(
                     function (a, n) {
-                        return a.indexOf(n) !== -1;
+                        return a.indexOf(n) !== -1 || (typeof a === 'string' ? "%1 substring {1}" : "%1 element {1}");
                     },
-                    "Actual value {0} does not contain the expected substring {1}",
+                    "Actual value {0} does not contain the expected",
                     this.subject,
                     needle
                 );
             },
+            /**
+             * Assert that a function will throw an error when executed. Additionally, a specific type of error or error
+             * message can be expected. If this is specified and an error is thrown which does not match the
+             * expectation, the assertion will fail.
+             *
+             * Though the expected error type/message is optional, it is highly recommended to use it, otherwise if your
+             * function is failing in a way which you did not expect, that error will be swallowed and your tests will
+             * still pass.
+             *
+             * The `expectedError` argument can be a string or a regex (in which case these are compared against the
+             * error's `.message` property), or a constructor (in which case, the thrown error should be an instance of
+             * this function).
+             *
+             *      assert.that(function () {
+             *          (0)();
+             *      }).willThrow(TypeError);
+             *
+             * @param  {String|RegExp|Function} expectedError
+             */
             willThrow : function (expectedError) {
                 return build(
                     function (f, expectedError) {
@@ -906,6 +958,12 @@
                     expectedError
                 );
             },
+            /**
+             * Assert that a function will not throw any errors when executed.
+             *
+             * The given function will be executed with no arguments or context. If you require arguments, then a
+             * closure should be used. This assertion only be applied to subjects of type `function`.
+             */
             wontThrow : function () {
                 return build(
                     function (f) {
@@ -920,6 +978,16 @@
                     this.subject
                 );
             },
+            /**
+             * Assert that two objects have the same values (deep equality).
+             *
+             * This assertion should be used when you want to compare two objects to see that they contain the same
+             * values. If you are asserting with primitives such as strings or numbers, then it is faster to use `.is`
+             *
+             *     assert({a : 'bar', b : 'baz'}).equals({b : 'baz', a : 'bar'})(); // PASS, same keys and values.
+             *
+             * @param  {Object} object
+             */
             equals : function (object) {
                 return build(
                     isEqual,
@@ -931,6 +999,17 @@
         };
         assert = function (actual) {
             var is;
+            /**
+             * Assert that the subject is identical (`===`, same value and type) to another value.
+             *
+             * For comparing the members of objects (including Arrays, Dates, etc), the `equals` assertion usually more
+             * appropriate. For example,
+             *
+             *     assert.that([1, 2, 3]).is([1, 2, 3])(); // FAIL, they are not the same object
+             *     assert.that([1, 2, 3]).equals([1, 2, 3])(); // PASS, each of their members have the same value.
+             *
+             * @param {*} expected
+             */
             is = function (expected) {
                 // `is`
                 return build(
@@ -970,6 +1049,7 @@
         };
         assert.that = assert;
 
+        // builds the actual assertion
         build = function (condition, message/*, args... */) {
             var args = Array.prototype.slice.call(arguments, 2),
                 since
@@ -980,6 +1060,7 @@
                 ;
                 // success can be signalled by returning true, or returning nothing.
                 if (result === true || typeof result === 'undefined') {
+                    ++currentTestAssertions;
                     return; // success!
                 } else { // failure is signalled by any other value; typically false, a string or an array
                     isArr = isArray(result);
