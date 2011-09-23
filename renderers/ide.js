@@ -4,7 +4,7 @@ module.exports = {
     afterTest : function (test, mod, tyrtle) {
         if (test.status === Tyrtle.FAIL) {
             var msg = test.name + ": " + test.statusMessage.replace(/\n/g, '\\n'),
-                out, tmp
+                out
             ;
             if (test.error) {
                 out = [
@@ -21,11 +21,6 @@ module.exports = {
             }
             out = out.join(':');
             console.log(out);
-            tmp = (/^(.+?):(\d+):(.*)$/).exec(out);
-            if (!tmp) {
-                console.log("!!!");
-            }
-
         }
     }
 };
