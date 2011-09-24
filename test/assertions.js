@@ -469,3 +469,38 @@ asyncTest("Expects assertions", function () {
     });
     t.run();
 });
+asyncTest("Globally added assertions", function () {
+    var t = new Tyrtle({
+        callback : function () {
+            equals(t.passes, 2, "Two tests should have passed");
+            equals(t.fails, 1, "One should have failed");
+            equals(t.errors, 0, "None should have errored");
+            ok(Tyrtle.hasAssertion('isCool'), "Tyrtle should have an assertion called isCool");
+            Tyrtle.removeAssertion('isCool');
+            ok(!Tyrtle.hasAssertion('isCool'), "The assertion should have been removed.");
+            start();
+
+        }
+    });
+    Tyrtle.addAssertions({
+        isCool : function (subject) {
+            return subject === 'jake' || subject === 'elwood' || "{0} is not cool";
+        }
+    });
+    t.module("a", function () {
+        this.test("jake", function (assert) {
+            assert('jake').isCool()();
+        });
+    });
+    t.module("b", function () {
+        this.test("elwood", function (assert) {
+            assert('elwood').isCool()();
+        });
+    });
+    t.module("c", function () {
+        this.test("someone else", function (assert) {
+            assert('timothy').isCool()();
+        });
+    });
+    t.run();
+});

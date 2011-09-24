@@ -296,6 +296,7 @@
             }
         };
         Tyrtle.setParams = setParams;
+
         /**
          * Static method used when you do not have an instance of Tyrtle yet. Modules returned by this function must
          * still be added to an instance of Tyrtle using Tyrtle.module()
@@ -432,6 +433,7 @@
             test : function (name, fn, assertionsFn) {
                 this.tests.push(new Test(name, fn, assertionsFn));
             },
+
             before : function (fn) {
                 addHelper.call(this, 'before', fn);
             },
@@ -1082,6 +1084,20 @@
             };
             since.since = since;
             return since;
+        };
+        // Global assertions, added to all modules of all instances of Tyrtle
+        Tyrtle.addAssertions = function (newAssertions) {
+            each(newAssertions, function (fn, name) {
+                assertions[name] = function () {
+                    return build.apply(null, [fn, "", this.subject].concat([].slice.apply(arguments)));
+                };
+            });
+        };
+        Tyrtle.hasAssertion = function (assertionName) {
+            return assertions.hasOwnProperty(assertionName);
+        };
+        Tyrtle.removeAssertion = function (assertionName) {
+            delete assertions[assertionName];
         };
     }());
 
