@@ -997,6 +997,43 @@
                     this.subject,
                     object
                 );
+            },
+            /**
+             * Assert that a function which has been spied upon by Myrtle has been called a exactly this many times.
+             * If no value is passed to this assertion, then it will assert that the function has been called *at least
+             * once*.
+             *
+             * @example
+             *  Myrtle.spy(obj, 'myFunc').and(function () {
+             *      // `this` is the Myrtle handle
+             *      doSomething();
+             *      assert.that(this).is.called(3).since("obj.myFunc should have been called 3 times");
+             *  });
+             *
+             * @example
+             *  assert.that(handle).is.called()("The function should have been called at least once");
+             *
+             * @param {Number=} numTimes The number of times which the function should have been called.
+             */
+            called : function (numTimes) {
+                return build(
+                    function (subject, numTimes) {
+                        var cc;
+                        if (subject && typeof subject.callCount === 'function') {
+                            cc = subject.callCount();
+                            if (numTimes != null) {
+                                return cc === numTimes || ["%1", cc];
+                            } else {
+                                return cc > 0 || "Function was not called";
+                            }
+                        } else {
+                            return "Object is not a Myrtle handle";
+                        }
+                    },
+                    "Function call count is {2} when a value of {1} was expected",
+                    this.subject,
+                    numTimes
+                );
             }
         };
         assert = function (actual) {
