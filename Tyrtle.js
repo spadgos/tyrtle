@@ -69,11 +69,14 @@
         };
     }());
 
-    extend = function (Cls, obj) {
+    extend = function (target, source) {
         var i;
-        for (i in obj) {
-            if (obj.hasOwnProperty(i)) {
-                Cls.prototype[i] = obj[i];
+        if (!target) {
+            target = {};
+        }
+        for (i in source) {
+            if (source.hasOwnProperty(i)) {
+                target[i] = source[i];
             }
         }
     };
@@ -255,23 +258,7 @@
                  )
             ;
         };
-        Tyrtle.PASS = PASS;
-        Tyrtle.FAIL = FAIL;
-        Tyrtle.SKIP = SKIP;
-        Tyrtle.getRenderer = function () {
-            return this.renderer;
-        };
-        Tyrtle.setRenderer = function (renderer) {
-            each(emptyRenderer, function (val, key) {
-                if (!(key in renderer)) {
-                    renderer[key] = val;
-                }
-            }, this);
-            this.renderer = renderer;
-        };
-        // a default renderer which clearly does nothing, provided so that we don't have to check each function exists
-        // when using it
-        Tyrtle.renderer = emptyRenderer = {
+        emptyRenderer = {
             beforeRun      : noop,
             beforeModule   : noop,
             beforeTest     : noop,
@@ -295,21 +282,55 @@
                 );
             }
         };
-        Tyrtle.setParams = setParams;
 
-        /**
-         * Static method used when you do not have an instance of Tyrtle yet. Modules returned by this function must
-         * still be added to an instance of Tyrtle using Tyrtle.module()
-         *
-         * @param  {String} name The name of the module
-         * @param  {Function} body   The body function of the module
-         *
-         * @return {Module}
-         */
-        Tyrtle.module = function (name, body) {
-            return new Module(name, body);
-        };
+        // Static methods and properties
         extend(Tyrtle, {
+            PASS : PASS,
+            FAIL : FAIL,
+            SKIP : SKIP,
+            renderer : emptyRenderer,
+            /**
+             *  Get the current renderer
+             *  @return {Object}
+             */
+            getRenderer : function () {
+                return this.renderer;
+            },
+            /**
+             *  Set the current renderer. This is a static method because the renderer is global to all instances of
+             *  Tyrtle. If one of the renderer properties is not specified, then the corresponding property from
+             *  `emptyRenderer` is used.
+             *  @param {Object} renderer
+             */
+            setRenderer : function (renderer) {
+                each(emptyRenderer, function (val, key) {
+                    if (!(key in renderer)) {
+                        renderer[key] = val;
+                    }
+                }, this);
+                this.renderer = renderer;
+            },
+            /**
+             *  Set the parameters which Tyrtle uses for default values. In the browser, Tyrtle will automatically use
+             *  the parameters specified in the url.
+             */
+            setParams : setParams,
+            /**
+             * Static method used when you do not have an instance of Tyrtle yet. Modules returned by this function must
+             * still be added to an instance of Tyrtle using Tyrtle.module()
+             *
+             * @param  {String} name The name of the module
+             * @param  {Function} body   The body function of the module
+             *
+             * @return {Module}
+             */
+            module : function (name, body) {
+                return new Module(name, body);
+            }
+        });
+
+        // instance methods and properties
+        extend(Tyrtle.prototype, {
             passes : 0,
             fails : 0,
             errors : 0,
@@ -420,7 +441,7 @@
         cleanUpAssertions = function () {
             moduleAssertions = null;
         };
-        extend(Module, {
+        extend(Module.prototype, {
             tests : null,           // array of tests
             tyrtle : null,          // reference to the owner Tyrtle instance
             helpers : null,         // object containing the (before|after)(All)? functions
@@ -638,7 +659,7 @@
             this.asyncFn = asyncFn;
         };
 
-        extend(Test, {
+        extend(Test.prototype, {
             status : null,
             statusMessage: '',
             runTime : -1,
