@@ -660,6 +660,7 @@
         };
 
         extend(Test.prototype, {
+            /** @type {Status} one of PASS, FAIL, SKIP or null */
             status : null,
             statusMessage: '',
             runTime : -1,
@@ -668,17 +669,35 @@
             asyncFn : null,
             expectedAssertions : -1,
             ///////////////
+            /**
+             *  Skip this test.
+             *  @param {String=} reason A reason why this test is being skipped.
+             */
             skip : function (reason) {
                 throw new SkipMe(reason);
             },
+            /**
+             *  Conditionally skip this test.
+             *  @example
+             *  this.skipIf(typeof window === 'undefined', "Test only applies to browsers")
+             *  @param {Boolean} condition
+             *  @param {String=} reason A reason why this test is being skipped.
+             */
             skipIf : function (condition, reason) {
                 if (condition) {
                     this.skip(reason);
                 }
             },
+            /**
+             *  Expect an exact number of assertions that should be run by this test.
+             *  @param {Number} numAssertions
+             */
             expect : function (numAssertions) {
                 this.expectedAssertions = numAssertions;
             },
+            /**
+             *  @protected
+             */
             run : function (callback) {
                 var start, success, handleError, test = this;
                 success = function () {
@@ -742,9 +761,7 @@
     AssertionError = function (msg, args, userMessage) {
         this.message = Tyrtle.renderer.templateString.apply(
             Tyrtle.renderer,
-            [
-                (msg || "") + (msg && userMessage ? ": " : "") + (userMessage || "")
-            ].concat(args)
+            [(msg || "") + (msg && userMessage ? ": " : "") + (userMessage || "")].concat(args)
         );
         var newError = new Error(),
             re_stack = /([^(\s]+\.js):(\d+):(\d+)/g
