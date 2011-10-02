@@ -790,7 +790,7 @@
     //  Assertions  //
     //////////////////
     (function () {
-        var assertions, build;
+        var assertions, build, handleAssertionResult;
         assertions = {
             /**
              * Assert that two values are not identical. Uses strict equality checking: `!==`.
@@ -1126,36 +1126,44 @@
         };
         assert.that = assert;
 
-        // builds the actual assertion
-        build = function (condition, message/*, args... */) {
+        handleAssertionResult = function (result, args, message, userMessage) {
+            var isArr;
+            // success can be signalled by returning true, or returning nothing.
+            if (result === true || typeof result === 'undefined') {
+                ++currentTestAssertions;
+                return; // success!
+            } else { // failure is signalled by any other value; typically false, a string or an array
+                isArr = isArray(result);
+
+                // if we have an array
+                if (isArr) {
+                    // grab all but the first element and add that to the arguments
+                    args = args.concat(result.slice(1));
+                    // grab the first element and make that the error message
+                    result = result[0];
+                }
+                // if the result is a string, use that instead of the default
+                if (typeof result === 'string') {
+                    // the default message can be inserted by using '%1' in the error
+                    message = result.replace(/%1/, message || '');
+                }
+                throw new AssertionError(message, args, userMessage);
+            }
+        };
+
+        /**
+         *  Builds the actual assertion function.
+         *  @param {Function} condition The function which tests the assertion
+         *  @param {String} message A default assertions message.
+         *  @param {*...} Additional arguments which are to be passed to the condition function
+         *  @return {Function} The assertion, ready to run.
+         */
+        build = function (condition, message) {
             var args = Array.prototype.slice.call(arguments, 2),
                 since
             ;
             since = function (userMessage) {
-                var result = condition.apply({}, args),
-                    isArr
-                ;
-                // success can be signalled by returning true, or returning nothing.
-                if (result === true || typeof result === 'undefined') {
-                    ++currentTestAssertions;
-                    return; // success!
-                } else { // failure is signalled by any other value; typically false, a string or an array
-                    isArr = isArray(result);
-
-                    // if we have an array
-                    if (isArr) {
-                        // grab all but the first element and add that to the arguments
-                        args = args.concat(result.slice(1));
-                        // grab the first element and make that the error message
-                        result = result[0];
-                    }
-                    // if the result is a string, use that instead of the default
-                    if (typeof result === 'string') {
-                        // the default message can be inserted by using '%1' in the error
-                        message = result.replace(/%1/, message || '');
-                    }
-                    throw new AssertionError(message, args, userMessage);
-                }
+                handleAssertionResult(condition.apply({}, args), args, message, userMessage);
             };
             since.since = since;
             return since;
