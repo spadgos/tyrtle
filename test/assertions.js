@@ -472,9 +472,9 @@ asyncTest("Expects assertions", function () {
 asyncTest("Globally added assertions", function () {
     var t = new Tyrtle({
         callback : function () {
-            equals(t.passes, 2, "Two tests should have passed");
-            equals(t.fails, 1, "One should have failed");
-            equals(t.errors, 0, "None should have errored");
+            equal(t.passes, 2, "Two tests should have passed");
+            equal(t.fails, 1, "One should have failed");
+            equal(t.errors, 0, "None should have errored");
             ok(Tyrtle.hasAssertion('isCool'), "Tyrtle should have an assertion called isCool");
             Tyrtle.removeAssertion('isCool');
             ok(!Tyrtle.hasAssertion('isCool'), "The assertion should have been removed.");
@@ -501,6 +501,90 @@ asyncTest("Globally added assertions", function () {
         this.test("someone else", function (assert) {
             assert('timothy').isCool()();
         });
+    });
+    t.run();
+});
+asyncTest("Assertion functions has access to other assertions via this", function () {
+    var t, passing = [], failing = [];
+    t = new Tyrtle({
+        callback : function () {
+            equal(t.passes, passing.length);
+            equal(t.fails, failing.length);
+            start();
+        }
+    });
+    Tyrtle.addAssertions({
+        globalA : function (subject) {
+            this(subject).ok()();
+        },
+        globalB : function (subject) {
+            this(subject).globalA()();
+        },
+        globalToLocal : function (subject) {
+            this(subject).localB()();
+        }
+    });
+    t.module("a", function () {
+        this.addAssertions({
+            localA : function (subject) {
+                this(subject).globalA()();
+            },
+            localB : function (subject) {
+                return subject === 'woo' || 'Failed local b';
+            }
+        });
+        passing.push(this.test("passing", function (assert) {
+            assert(true).globalA()("foo");
+            assert(true).globalB()("foo");
+            assert('woo').globalToLocal()();
+        }));
+        failing.push(this.test("failing", function (assert) {
+            assert(false).globalA()("bar");
+        }));
+        failing.push(this.test("failing 2", function (assert) {
+            assert(false).globalB()("bar");
+        }));
+        failing.push(this.test("failing 3", function (assert) {
+            assert('blah').globalToLocal()("bah");
+        }));
+    });
+    t.run();
+});
+asyncTest("Assertions calling other assertions do not raise the expected count", function () {
+    var t, passing = [], failing = [];
+    t = new Tyrtle({
+        callback : function () {
+            equal(t.passes, passing.length);
+            equal(t.fails, failing.length);
+            start();
+        }
+    });
+    Tyrtle.addAssertions({
+        globalA : function (subject) {
+            this(subject).ok()();
+        },
+        globalB : function (subject) {
+            this(subject).globalA()();
+        },
+        globalToLocal : function (subject) {
+            this(subject).localB()();
+        }
+    });
+    t.module("a", function () {
+        this.addAssertions({
+            localA : function (subject) {
+                this(subject).globalA()();
+            },
+            localB : function (subject) {
+                return subject === 'woo' || 'Failed local b';
+            }
+        });
+        passing.push(this.test("passing", function (assert) {
+            this.expect(3);
+            assert(true).globalA()("foo");
+            assert(true).globalB()("foo");
+            assert('woo').globalToLocal()();
+        }));
     });
     t.run();
 });

@@ -802,7 +802,7 @@
                                 if (test.expectedAssertions !== -1) {
                                     assert.that(currentTestAssertions)
                                           .is(test.expectedAssertions)
-                                          ("Incorrect number of assertions made by this test.")
+                                          .since("Incorrect number of assertions made by this test.")
                                     ;
                                 }
                                 success();
@@ -872,7 +872,7 @@
     //  Assertions  //
     //////////////////
     (function () {
-        var assertions, build, handleAssertionResult;
+        var assertions, build, handleAssertionResult, internalAssertionCount = 0;
         assertions = {
             /**
              * Assert that two values are not identical. Uses strict equality checking: `!==`.
@@ -1230,9 +1230,7 @@
         handleAssertionResult = function (result, args, message, userMessage) {
             var isArr;
             // success can be signalled by returning true, or returning nothing.
-            if (result === true || typeof result === 'undefined') {
-                ++currentTestAssertions;
-            } else { // failure is signalled by any other value; typically false, a string or an array
+            if (result !== true && typeof result !== 'undefined') {
                 isArr = isArray(result);
 
                 // if we have an array
@@ -1263,7 +1261,14 @@
                 since
             ;
             since = function (userMessage) {
-                handleAssertionResult(condition.apply({}, args), args, message, userMessage);
+                try {
+                    if (internalAssertionCount++ === 0) {
+                        ++currentTestAssertions;
+                    }
+                    handleAssertionResult(condition.apply(assert, args), args, message, userMessage);
+                } finally {
+                    --internalAssertionCount;
+                }
             };
             since.since = since;
             return since;
