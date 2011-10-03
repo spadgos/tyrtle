@@ -57,6 +57,7 @@
                 }
             }
         ;
+
         getParam = function (name) {
             if (!urlParams) {
                 loadParams();
@@ -405,11 +406,19 @@
     //
     (function () {
         var addHelper, runHelper, applyAssertions, cleanUpAssertions;
+        /**
+         * A testing module. Represents a logical grouping of tests. A Module can have custom **helpers** to assist in
+         * setting up and cleaning up the tests, as well as custom assertions which streamline writing the tests.
+         *
+         * @class
+         * @param {String} name The name of this module
+         * @param {Function} body The body of this function.
+         */
         Module = function (name, body) {
             this.name = name;
             this.tests = [];
             this.helpers = {};
-            body.call(this); // TODO: could provide a reduced api here
+            body.call(this);
         };
         addHelper = function (name, fn) {
             if (this.helpers[name]) {
@@ -451,22 +460,74 @@
             skips : 0,              // }
             errors : 0,             // }
             //////////////////////////
-            test : function (name, fn, assertionsFn) {
-                this.tests.push(new Test(name, fn, assertionsFn));
+            /**
+             * Create a new Test and add it to this Module
+             * @param  {String} name A name for this test.
+             * @param  {Function} bodyFn The body function for this test.
+             * @param  {Function=} assertionsFn If writing an asynchronous test, this is the function where assertions
+             *                                  can be executed. For synchronous tests, *do not supply this parameter*.
+             * @return {Test} The newly created test.
+             */
+            test : function (name, bodyFn, assertionsFn) {
+                var t = new Test(name, bodyFn, assertionsFn);
+                this.tests.push(t);
+                return t;
             },
-
+            /**
+             * Add a `before` helper which is executed *before each test* is started.
+             * @param  {Function} fn The body of the helper
+             */
             before : function (fn) {
                 addHelper.call(this, 'before', fn);
             },
+            /**
+             * Add an `after` helper which is executed *after each test* has finished.
+             * @param  {Function} fn The body of the helper
+             */
             after : function (fn) {
                 addHelper.call(this, 'after', fn);
             },
+            /**
+             * Add a `beforeAll` helper which is executed *before any tests* have started.
+             * @param  {Function} fn The body of the helper
+             */
             beforeAll : function (fn) {
                 addHelper.call(this, 'beforeAll', fn);
             },
+            /**
+             * Add an `afterAll` helper which is executed *after all tests* have finished.
+             * @param  {Function} fn The body of the helper
+             */
             afterAll : function (fn) {
                 addHelper.call(this, 'afterAll', fn);
             },
+            /**
+             * Add per-module (local) assertions to this module. These *may override built-in assertions*. Assertions
+             * defined here are not accessible or visible to any other modules.
+             *
+             * The assertion body should return `true` or `undefined` to indicate a pass. A string will be used as the
+             * default error message, and an array allows the assertion to add additional arguments to be substituted
+             * into the error message.
+             *
+             * @example
+             * this.addAssertions({
+             *    bigNumber : function (subject) {
+             *        // returns true or false. No error message for failing assertions.
+             *        return subject > 9000;
+             *    },
+             *    answer : function (subject) {
+             *        // returns true or a string. `subject` will be substituted for "{0}"
+             *        return subject === 42 || "The supplied value {0} is not the answer to life, & etc.";
+             *    }
+             *    biggerThan : function (subject, expected) {
+             *        // returns true or an array. `expected - subject` is added to the substitution list.
+             *        // assert(5).is.biggerThan(7)(); --> "5 is not bigger than 7. It is off by 2"
+             *        return subject > expected || ["{0} is not bigger than {1}. It is off by {2}", expected - subject];
+             *    }
+             * });
+             *
+             * @param {Object} fnMap A map of {String} AssertionName => {Function} AssertionBody.
+             */
             addAssertions : function (fnMap) {
                 if (!this.extraAssertions) {
                     this.extraAssertions = fnMap;
@@ -476,6 +537,9 @@
                     }, this);
                 }
             },
+            /**
+             * @protected
+             */
             run : function (callback) {
                 var runNext,
                     i = -1,
@@ -551,6 +615,9 @@
                     runNext();
                 });
             },
+            /**
+             * @protected
+             */
             runTest : function (test, callback) {
                 var m = this, t = this.tyrtle, go, done;
                 Tyrtle.renderer.beforeTest(test, m, t);
@@ -574,6 +641,9 @@
                     done();
                 });
             },
+            /**
+             * @protected
+             */
             rerunTest : function (test, tyrtle, callback) {
                 var mod = this, run, complete;
                 switch (test.status) {
@@ -746,7 +816,7 @@
                         if (test.expectedAssertions !== -1) {
                             assert.that(currentTestAssertions)
                                   .is(test.expectedAssertions)
-                                  ("Incorrect number of assertions made by this test.")
+                                  .since("Incorrect number of assertions made by this test.")
                             ;
                         }
                         success();
@@ -758,15 +828,21 @@
         });
     }());
 
+    /**
+     * AssertionError exception class. An instance of this class is thrown whenever an assertion fails.
+     * @class
+     * @param {String} msg A message for the failed assertion, this is defined by the assertion itself.
+     * @param {Array} args Arguments passed to the assertion, these are used to substitute into the error message.
+     * @param {String} userMessage An error message as defined by the user.
+     */
     AssertionError = function (msg, args, userMessage) {
+        var newError = new Error(),
+            re_stack = /([^(\s]+\.js):(\d+):(\d+)/g
+        ;
         this.message = Tyrtle.renderer.templateString.apply(
             Tyrtle.renderer,
             [(msg || "") + (msg && userMessage ? ": " : "") + (userMessage || "")].concat(args)
         );
-        var newError = new Error(),
-            re_stack = /([^(\s]+\.js):(\d+):(\d+)/g
-        ;
-        this.temp = newError;
         if (newError.stack) { // TODO: cross-browser implementation
             this.stack = [];
             each(newError.stack.match(re_stack), function (str) {
@@ -782,9 +858,15 @@
     };
     AssertionError.prototype.name = "AssertionError";
 
+    /**
+     * SkipMe exception. This is thrown by tests when `this.skip()` or `this.skipIf(true)` is called.
+     * @class
+     * @param  {String} reason A reason for this test to be skipped.
+     */
     SkipMe = function (reason) {
         this.message = reason;
     };
+    SkipMe.prototype.name = 'SkipMe';
 
     //////////////////
     //  Assertions  //
@@ -846,7 +928,7 @@
                     function (a, e) {
                         var type = typeof a;
 //#JSCOVERAGE_IF typeof /a/ === 'function'
-                        // webkit (incorrectly?) reports regexes as functions.
+                        // webkit (incorrectly?) reports regexes as functions. Normalize this to 'object'.
                         if (type === 'function' && a.constructor === RegExp) {
                             type = 'object';
                         }
@@ -1074,6 +1156,14 @@
                 );
             }
         };
+        /**
+         * The assertion starting point. This is the actual function passed in to each test. The value passed as an
+         * argument to this function is used as the *subject* of the assertion.
+         *
+         * @param  {*} actual A value which is the subject of this assertion
+         * @return {Function} A function which initiates an `is` assertion. Other types of assertion are stored as
+         *                    properties of this function.
+         */
         assert = function (actual) {
             var is;
             /**
@@ -1126,12 +1216,22 @@
         };
         assert.that = assert;
 
+        /**
+         * Handle the result of running an assertion.
+         * @param  {Boolean|String|Array} result The result of the assertion. True or undefined for "pass", any other
+         *                                       value for failure. A string is used as the error message, and an array
+         *                                       should contain an error message in the first position, followed by
+         *                                       additional arguments to be substituted into the message.
+         * @param  {Array} args The arguments passed to the assertion function
+         * @param  {String} message The default assertion error message
+         * @param  {String} userMessage The user-supplied error message
+         * @throws {AssertionError} If the assertion failed.
+         */
         handleAssertionResult = function (result, args, message, userMessage) {
             var isArr;
             // success can be signalled by returning true, or returning nothing.
             if (result === true || typeof result === 'undefined') {
                 ++currentTestAssertions;
-                return; // success!
             } else { // failure is signalled by any other value; typically false, a string or an array
                 isArr = isArray(result);
 
@@ -1158,7 +1258,7 @@
          *  @param {*...} Additional arguments which are to be passed to the condition function
          *  @return {Function} The assertion, ready to run.
          */
-        build = function (condition, message) {
+        build = function (condition, message/*, args */) {
             var args = Array.prototype.slice.call(arguments, 2),
                 since
             ;
@@ -1168,28 +1268,44 @@
             since.since = since;
             return since;
         };
-        // Global assertions, added to all modules of all instances of Tyrtle
-        Tyrtle.addAssertions = function (newAssertions) {
-            each(newAssertions, function (fn, name) {
-                assertions[name] = function () {
-                    return build.apply(null, [fn, "", this.subject].concat([].slice.apply(arguments)));
-                };
-            });
-        };
-        Tyrtle.hasAssertion = function (assertionName) {
-            return assertions.hasOwnProperty(assertionName);
-        };
-        Tyrtle.removeAssertion = function (assertionName) {
-            delete assertions[assertionName];
-        };
+        extend(Tyrtle, {
+            /**
+             *  Global assertions, added to all modules of all instances of Tyrtle
+             *  @param {Object} newAssertions A map of AssertionName => AssertionFunction
+             */
+            addAssertions : function (newAssertions) {
+                each(newAssertions, function (fn, name) {
+                    assertions[name] = function () {
+                        return build.apply(null, [fn, "", this.subject].concat([].slice.apply(arguments)));
+                    };
+                });
+            },
+            /**
+             * Check whether an assertion exists.
+             * @param  {String} assertionName The name of an assertion to check
+             * @return {Boolean}
+             */
+            hasAssertion : function (assertionName) {
+                return assertions.hasOwnProperty(assertionName);
+            },
+            /**
+             * Remove an assertion.
+             * @param  {String} assertionName The name of an assertions to remove
+             */
+            removeAssertion : function (assertionName) {
+                delete assertions[assertionName];
+            }
+        });
     }());
 
     // Export some of our helper functions too.
     // They might be useful to someone!
-    Tyrtle.isArray  = isArray;
-    Tyrtle.isRegExp = isRegExp;
-    Tyrtle.isDate   = isDate;
-    Tyrtle.getKeys  = getKeys;
+    extend(Tyrtle, {
+        isArray  : isArray,
+        isRegExp : isRegExp,
+        isDate   : isDate,
+        getKeys  : getKeys
+    });
 
 //#JSCOVERAGE_IF
     if (typeof module !== 'undefined') {
