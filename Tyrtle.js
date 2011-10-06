@@ -852,8 +852,8 @@
                     this.stack.push(parts.slice(1));
                 }
             }, this);
-            this.stack = this.stack.slice(2);
 
+            this.stack = this.stack.slice(3);
         }
     };
     AssertionError.prototype.name = "AssertionError";
