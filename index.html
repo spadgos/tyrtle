@@ -3,30 +3,37 @@
 <head>
   <meta charset='utf-8'>
 
-  <title>spadgos/tyrtle @ GitHub</title>
+  <title>Tyrtle :: Javascript Unit Testing Framework</title>
 
   <style type="text/css">
     body {
       margin-top: 1.0em;
-      background-color: #309c42;
-      font-family: Helvetica, Arial, FreeSans, san-serif;
+      background-color: #261420;
+      font-family: Ubuntu, Helvetica, Arial, FreeSans, sans-serif;
       color: #ffffff;
     }
     #container {
       margin: 0 auto;
       width: 700px;
     }
-    h1 { font-size: 3.8em; color: #cf63bd; margin-bottom: 3px; }
+    h1, h2, h3, a {
+      color: #cf63bd;
+    }
+    h1 { font-size: 3.8em; margin-bottom: 3px; }
     h1 .small { font-size: 0.4em; }
     h1 a { text-decoration: none }
-    h2 { font-size: 1.5em; color: #cf63bd; }
-    h3 { text-align: center; color: #cf63bd; }
-    a { color: #cf63bd; }
+    h1 a:hover { text-decoration: underline; }
+    h2 { font-size: 1.5em; }
+    h3 { text-align: center; }
     .description { font-size: 1.2em; margin-bottom: 30px; margin-top: 30px; font-style: italic;}
     .download { float: right; }
     pre { background: #000; color: #fff; padding: 15px;}
     hr { border: 0; width: 80%; border-bottom: 1px solid #aaa}
     .footer { text-align:center; padding-top:30px; font-style: italic; }
+
+    code {
+      font-family: Consolas, FreeMono, monospace;
+    }
   </style>
 </head>
 
@@ -43,24 +50,61 @@
     </div>
 
     <h1><a href="http://github.com/spadgos/tyrtle">tyrtle</a>
-      <span class="small">by <a href="http://github.com/spadgos">spadgos</a></span></h1>
+      <span class="small">by <a href="http://github.com/spadgos">nickf</a></span></h1>
 
     <div class="description">
-      A Javascript unit testing framework for the browser and Node
+      A Javascript unit testing framework for the browser and <a href="http://nodejs.org">NodeJS</a>.
     </div>
+    <p>
+      Tyrtle has been designed to be <strong>simple</strong> and <strong>legible</strong>, without polluting the global namespace.
+    </p>
+    <pre>
+var t = new Tyrtle();
 
-    <p>// TODO</p><h2>Dependencies</h2>
-<p>Tyrtle itself has no dependencies, however the packaged node test runner requires the node modules: `glob` and `optimist`</p>
+t.module("My first module", function () {
+    this.test("My first test", function (assert) {
+        var x = Math.sqrt(49);
+        assert.that(x).is(7).since("7 squared is 49");
+    });
+});
+</pre>
+<p>You have a browser with some of the best debugging tools available, so why not use them? The output from your tests is <strong>interactive</strong>. You can rerun individual tests without needing to reload the page, and even inspect the objects involved in your assertions. Here's a screenshot from Chrome:</p>
+<p><img src="res/inspector.png" width="645" height="243" alt="Chrome inspector" /></p>
+<p>If you're working with NodeJS, testing in a browser doesn't make much sense, so you'll need a nice test harness for the terminal. Tyrtle has you covered there too.</p>
+<p><img src="res/terminal.png" width="651" height"253" alt="Node test harness output" /></p>
+<p>You can easily add your own assertions which apply either globally, or just to a single module. By putting custom logic into these assertions, you can tidy up your test code and reuse more code.</p>
+<pre>
+t.module("My module with custom assertions", function () {
+    this.addAssertions({
+        tallerThan : function (subject, person){
+            return subject.height > person.height
+                || ["{0} is {1}cm tall, which is shorter than {2} ({3}cm)",
+                    subject.name,
+                    subject.height,
+                    person.name,
+                    person.height
+                ]
+            ;
+        }
+    });
+    var Tim = new Person("Tim", 150),
+        Mary = new Person("Mary", 160)
+    ;
+    this.test("Tim should be taller than Mary", function (assert) {
+        assert.that(Tim).is.tallerThan(Mary)();
+        // fails with message:
+        // "Tim is 150cm tall, which is shorter than Mary (160cm)"
+    });
+});</pre>
+    <h2>Dependencies</h2>
+<p>Tyrtle itself has no dependencies, however the packaged node test runner requires the node modules: <code><a href="https://github.com/isaacs/node-glob">glob</a></code> and <code><a href="http://github.com/substack/node-optimist">optimist</a></code></p>
 <h2>License</h2>
-<p>Creative Commons BY-SA License
-http://creativecommons.org/licenses/by-sa/3.0/
+<p><a href="http://www.gnu.org/licenses/lgpl.html">Lesser Gnu Public License</a>. It's free to use in any project (open source or proprietary), as long as attribution is given.
 </p>
 <h2>Authors</h2>
-<p>Nick Fisher (spadgos@gmail.com)<br/><br/>      </p>
-<h2>Contact</h2>
-<p>Nick Fisher (spadgos@gmail.com)<br/>      </p>
-
-
+<p>Nick Fisher (<a href="mailto:spadgos@gmail.com">spadgos@gmail.com</a>)
+<br/>
+<br/>      </p>
     <h2>Download</h2>
     <p>
       You can download this project in either
