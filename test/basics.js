@@ -118,3 +118,68 @@ asyncTest("Tests which had errors are reset after rerunning", function () {
     });
     t.run();
 });
+asyncTest("Different methods of instantiating a Module", function () {
+    var t, m;
+    expect(1);
+
+    t = new Tyrtle({
+        callback : function () {
+            equal(t.passes, 3);
+            start();
+        }
+    });
+    m = Tyrtle.module("mod 1", function () {
+        this.test("abc", function () {});
+    });
+    t.module(m);
+
+    t.module({
+        "mod 2" : function () {
+            this.test("def", function () {});
+        },
+        "mod 3" : function () {
+            this.test("ghi", function () {});
+        }
+    });
+    t.run();
+});
+asyncTest("Module filtering", function () {
+    expect(1);
+    var t = new Tyrtle({
+        callback : function () {
+            equal(t.passes, 1);
+            start();
+        },
+        modFilter : "foo"
+    });
+    t.module("foo", function () {
+        this.test("run this", function () {});
+    });
+    t.module("bar", function () {
+        this.test("skipped", function () {});
+    });
+    t.module("foo bar", function () {
+        this.test("skipped", function () {});
+    });
+    t.run();
+});
+asyncTest("Test filtering", function () {
+    expect(1);
+    var t = new Tyrtle({
+        callback : function () {
+            equal(t.passes, 1);
+            start();
+        },
+        testFilter : "run this"
+    });
+    t.module("foo", function () {
+        this.test("run this", function () {});
+    });
+    t.module("bar", function () {
+        this.test("skipped", function () {});
+    });
+    t.module("foo bar", function () {
+        this.test("skipped", function () {});
+    });
+    t.run();
+});

@@ -71,3 +71,17 @@ asyncTest("Custom renderers can be used", function () {
     });
     t.run();
 });
+
+test("Partial renderers can be used", function () {
+    var old = Tyrtle.getRenderer(),
+        newR,
+        beforeRun = function () {}
+    ;
+    Tyrtle.setRenderer({
+        beforeRun : beforeRun
+    });
+    newR = Tyrtle.getRenderer();
+
+    equal(old.beforeModule, newR.beforeModule, "The beforeModule should be the same");
+    equal(newR.beforeRun, beforeRun, "The beforeRun should be copied.");
+});

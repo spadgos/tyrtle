@@ -38,6 +38,7 @@
     //////////////////////////
     //  RUNTIME PARAMETERS  //
     //////////////////////////
+//#JSCOVERAGE_IF 0
     (function () {
         var urlParams, loadParams;
         loadParams = runningInNode
@@ -69,12 +70,9 @@
             urlParams = params || {};
         };
     }());
-
+//#JSCOVERAGE_ENDIF
     extend = function (target, source) {
         var i;
-        if (!target) {
-            target = {};
-        }
         for (i in source) {
             if (source.hasOwnProperty(i)) {
                 target[i] = source[i];
@@ -82,18 +80,20 @@
         }
     };
     // defer
-    defer = !root.postMessage
+//#JSCOVERAGE_IF
+    if (!root.postMessage) {
         /**
          * The regular defer method using a 0ms setTimeout. In reality, this will be executed in 4-10ms.
          */
-        ? function (fn) {
+        defer = function (fn) {
             setTimeout(fn, 0);
-        }
+        };
+    } else {
         /**
          * The postMessage defer method which will get executed as soon as the call stack has cleared.
          * Credit to David Baron: http://dbaron.org/log/20100309-faster-timeouts
          */
-        : (function () {
+        defer = (function () {
             var timeouts = [], messageName = "zero-timeout-message", setZeroTimeout, handleMessage;
 
             setZeroTimeout = function (fn) {
@@ -116,8 +116,8 @@
             return function (func) {
                 setZeroTimeout(func);
             };
-        }())
-    ;
+        }());
+    }
     noop = function () {};
     each = function (obj, iterator, context) {
         if (obj !== null && typeof obj !== 'undefined') {
@@ -132,23 +132,25 @@
             }
         }
     };
-//#JSCOVERAGE_IF 0
-    getKeys = Object.keys || function (obj) {
-        /*jslint newcap : false */
-        if (obj !== Object(obj)) {
-            throw new TypeError('Invalid object');
-        }
-        /*jslint newcap : true */
-
-        var keys = [], key;
-        for (key in obj) {
-            if (Object.prototype.hasOwnProperty.call(obj, key)) {
-                keys[keys.length] = key;
+    getKeys = Object.keys;
+//#JSCOVERAGE_IF
+    if (!getKeys) {
+        getKeys = function (obj) {
+            /*jslint newcap : false */
+            if (obj !== Object(obj)) {
+                throw new TypeError('Invalid object');
             }
-        }
-        return keys;
-    };
-//#JSCOVERAGE_ENDIF
+            /*jslint newcap : true */
+
+            var keys = [], key;
+            for (key in obj) {
+                if (Object.prototype.hasOwnProperty.call(obj, key)) {
+                    keys[keys.length] = key;
+                }
+            }
+            return keys;
+        };
+    }
 
     isRegExp = function (obj) {
         return !!(obj && obj.test && obj.exec && (obj.ignoreCase || obj.ignoreCase === false));
@@ -158,6 +160,7 @@
     * (c) 2011 Jeremy Ashkenas, DocumentCloud Inc.
     * http://documentcloud.github.com/underscore
     */
+//#JSCOVERAGE_IF 0
     isEqual = function (a, b) {
         /*jslint eqeqeq: false */
         var aKeys, atype, bKeys, btype, key;
@@ -171,10 +174,6 @@
 
         if (atype !== btype) {
             return false;
-        }
-        // Basic equality test (watch out for coercions).
-        if (a == b) {
-            return true;
         }
         // One is falsy and the other truthy.
         if ((!a && b) || (a && !b)) {
@@ -234,6 +233,7 @@
     isArray = Array.isArray || function (obj) {
         return Object.prototype.toString.call(obj) === '[object Array]';
     };
+//#JSCOVERAGE_ENDIF
     //
     // Tyrtle
     //

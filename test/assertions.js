@@ -1,4 +1,4 @@
-/*globals asyncTest, test, Tyrtle, equal, expect, start, raises, ok, module */
+/*globals asyncTest, test, Tyrtle, Myrtle, equal, expect, start, raises, ok, module */
 module('Assertions');
 asyncTest("Basic assertions", function () {
     var t = new Tyrtle({
@@ -82,7 +82,9 @@ asyncTest("Tyrtle assertions", function () {
     });
     t.module("Passing tests", function () {
         this.test("Passing tests", function (assert) {
-            var x = 3, undef, a, CustomError = function () {};
+            var x = 3, undef, a, CustomError = function () {},
+                myObj, handleFoo, handleBar
+            ;
             assert.that(x).is(3).since("x should be three");
             assert.that(x).is(3)("x should be three");
             assert(x).is(3)("x should be three");
@@ -106,6 +108,10 @@ asyncTest("Tyrtle assertions", function () {
             assert.that([]).is.ofType('object')('arrays are objects too');
             assert.that(/a/).is.ofType('object')('regexes are objects');
             assert.that(null).is.ofType('object')('strangely, null is an object');
+            assert.that([]).is.ofType('array')('arrays are arrays');
+            assert.that(/a/).is.ofType('regexp')('regexps are regexps');
+            assert.that(new Date()).is.ofType('date')('dates are dates');
+            assert.that(new Date()).is.ofType('object')('dates are objects');
             assert.that(undef).is.ofType('undefined')('undefined variables are undefined');
             assert.that(function () {}).is.ofType('function')();
 
@@ -175,6 +181,30 @@ asyncTest("Tyrtle assertions", function () {
                 .equals({a : {b : 'c'}, d : {e : [/f/]}})()
             ;
             assert.that(new Date(123456789)).equals(new Date(123456789))();
+
+            try {
+                myObj = {
+                    foo : function (a) {
+                        return a + 1;
+                    },
+                    bar : function (a) {
+                        return this.foo(a) + 1;
+                    }
+                };
+                handleFoo = assert(Myrtle.spy(myObj, 'foo'));
+                handleBar = assert(Myrtle.spy(myObj, 'bar'));
+                handleFoo.called(0)("Should not have been called yet");
+                myObj.foo(3);
+                handleFoo.called(1)("Should have been called once");
+                handleFoo.called()("Should have been called at least once");
+                myObj.bar(5);
+                handleBar.called(1)("should have been called once");
+                handleBar.called()("Should have been called at least once");
+                handleFoo.called(2)("Should have triggered foo");
+                handleFoo.called()("Two calls should be acceptable");
+            } finally {
+                Myrtle.releaseAll();
+            }
         });
     });
     t.module("failing tests", function () {
@@ -229,6 +259,16 @@ asyncTest("Tyrtle assertions", function () {
                 throw new CustomError();
             }).willThrow(CustomError2)();
         });
+        this.test("willThrow 3", function (assert) {
+            assert(function () {
+                throw new Error("foo");
+            }).willThrow("bar")();
+        });
+        this.test("willThrow 4", function (assert) {
+            assert(function () {
+                throw new Error("foo");
+            }).willThrow(/bar/)();
+        });
         this.test("wontThrow", function (assert) {
             assert(function () {
                 throw 'abc';
@@ -242,6 +282,34 @@ asyncTest("Tyrtle assertions", function () {
         });
         this.test("equals of different types", function (assert) {
             assert(3).equals('3')();
+        });
+        this.test("called 1", function (assert) {
+            assert(1).called()();
+        });
+        this.test('called 2', function (assert) {
+            try {
+                var o, h;
+                o = {
+                    foo : function () {}
+                };
+                h = Myrtle.spy(o, 'foo');
+                assert(h).called()();
+            } finally {
+                Myrtle.releaseAll();
+            }
+        });
+        this.test('called 3', function (assert) {
+            try {
+                var o, h;
+                o = {
+                    foo : function () {}
+                };
+                h = Myrtle.spy(o, 'foo');
+                o.foo();
+                assert(h).called(5)();
+            } finally {
+                Myrtle.releaseAll();
+            }
         });
     });
     t.run();
@@ -297,9 +365,7 @@ asyncTest("Custom assertions are not shared between modules", function () {
     });
     t.module("first", function () {
         this.addAssertions({
-            alpha : function (subject) {
-                return (/^[a-z]+$/).test(subject);
-            }
+            alpha : function (subject) {}
         });
 
         this.test("letters", function (assert) {
@@ -308,9 +374,7 @@ asyncTest("Custom assertions are not shared between modules", function () {
     });
     t.module("second", function () {
         this.addAssertions({
-            numeric : function (subject) {
-                return (/^\d+$/).test(subject);
-            }
+            numeric : function (subject) {}
         });
         this.test("numbers", function (assert) {
             equal(typeof assert.that('123').is.numeric, 'function', "This function should have the custom fn");
@@ -355,11 +419,12 @@ asyncTest("Custom assertions can override built-in assertions", function () {
 });
 asyncTest("Custom error messages with assertions", function () {
     var t;
-    expect(2);
+    expect(3);
     t = new Tyrtle({
         callback : function () {
             equal(t.modules[0].tests[0].statusMessage, "Failed: you is not nickf: you're not a cool guy!");
             equal(t.modules[0].tests[1].statusMessage, "Failed: you is not nickf");
+            equal(t.modules[0].tests[2].statusMessage, "Failed: 8 is not less than 5");
             start();
         }
     });
@@ -378,6 +443,9 @@ asyncTest("Custom error messages with assertions", function () {
         });
         this.test("ok 2", function (assert) {
             assert.that('you').is.ok()();
+        });
+        this.test("lessThan", function (assert) {
+            assert.that(8).is.lessThan(5)();
         });
     });
     t.run();
@@ -400,9 +468,7 @@ asyncTest("Custom assertions are reapplied to rerun functions", function () {
     });
     t.module("first", function () {
         this.addAssertions({
-            alpha : function (subject) {
-                return (/^[a-z]+$/).test(subject);
-            }
+            alpha : function (subject) {}
         });
 
         this.test("letters", function (assert) {
@@ -411,9 +477,7 @@ asyncTest("Custom assertions are reapplied to rerun functions", function () {
     });
     t.module("second", function () {
         this.addAssertions({
-            numeric : function (subject) {
-                return (/^\d+$/).test(subject);
-            }
+            numeric : function (subject) {}
         });
         this.test("numbers", function (assert) {
             equal(typeof assert.that('123').is.numeric, 'function', "This function should have the custom fn");
@@ -536,6 +600,7 @@ asyncTest("Assertion functions has access to other assertions via this", functio
         passing.push(this.test("passing", function (assert) {
             assert(true).globalA()("foo");
             assert(true).globalB()("foo");
+            assert(true).localA();
             assert('woo').globalToLocal()();
         }));
         failing.push(this.test("failing", function (assert) {
@@ -545,6 +610,9 @@ asyncTest("Assertion functions has access to other assertions via this", functio
             assert(false).globalB()("bar");
         }));
         failing.push(this.test("failing 3", function (assert) {
+            assert(false).localA()();
+        }));
+        failing.push(this.test("failing 4", function (assert) {
             assert('blah').globalToLocal()("bah");
         }));
     });
@@ -580,9 +648,10 @@ asyncTest("Assertions calling other assertions do not raise the expected count",
             }
         });
         passing.push(this.test("passing", function (assert) {
-            this.expect(3);
+            this.expect(4);
             assert(true).globalA()("foo");
             assert(true).globalB()("foo");
+            assert(true).localA()();
             assert('woo').globalToLocal()();
         }));
     });
