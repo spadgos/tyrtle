@@ -1,11 +1,15 @@
-/*globals window, Tyrtle */
+/*globals window*/
 //#JSCOVERAGE_IF 0
+var Tyrtle = window.Tyrtle;
 
 if (typeof window === 'undefined') {
     throw "HTML renderer can only be used in a browser.";
 }
 if (typeof window.jQuery === 'undefined') {
     throw "jQuery is required for the HTML renderer.";
+}
+if (typeof Tyrtle === 'undefined' && typeof require === 'function') {
+    Tyrtle = require('tyrtle');
 }
 if (typeof Tyrtle === 'undefined') {
     throw "Tyrtle must be loaded before the renderer is added.";

@@ -463,13 +463,14 @@
             /**
              * Create a new Test and add it to this Module
              * @param  {String} name A name for this test.
+             * @param  {Number=} expectedAssertions The number of assertions this test is expected to run. Optional.
              * @param  {Function} bodyFn The body function for this test.
              * @param  {Function=} assertionsFn If writing an asynchronous test, this is the function where assertions
              *                                  can be executed. For synchronous tests, *do not supply this parameter*.
              * @return {Test} The newly created test.
              */
-            test : function (name, bodyFn, assertionsFn) {
-                var t = new Test(name, bodyFn, assertionsFn);
+            test : function (name, expectedAssertions, bodyFn, assertionsFn) {
+                var t = new Test(name, expectedAssertions, bodyFn, assertionsFn);
                 this.tests.push(t);
                 return t;
             },
@@ -723,7 +724,13 @@
     (function () {
         var incorrectNumAssertions;
 
-        Test = function (name, body, asyncFn) {
+        Test = function (name, expectedAssertions, body, asyncFn) {
+            if (typeof expectedAssertions !== 'number') {
+                asyncFn = body;
+                body = expectedAssertions;
+            } else {
+                this.expect(expectedAssertions);
+            }
             this.name = name;
             this.body = body;
             this.asyncFn = asyncFn;
