@@ -17,6 +17,7 @@
         noop,
         each,
         isArray,
+        isFunction,
         isRegExp,
         getKeys,
         isEqual,
@@ -154,6 +155,10 @@
 
     isRegExp = function (obj) {
         return !!(obj && obj.test && obj.exec && (obj.ignoreCase || obj.ignoreCase === false));
+    };
+
+    isFunction = function(obj) {
+        return Object.prototype.toString.call(obj) === '[object Function]';
     };
     /**
     * This function is taken from Underscore.js 1.1.6
@@ -415,6 +420,9 @@
          * @param {Function} body The body of this function.
          */
         Module = function (name, body) {
+            if (!body && isFunction(name)) {
+                throw new Error("Module instantiated without a name.");
+            }
             this.name = name;
             this.tests = [];
             this.helpers = {};
