@@ -175,6 +175,12 @@
     this.test("endsWith 3", function (assert) {
       assert.that(123456).endsWith('456')();
     });
+    this.test("endsWith 4", function (assert) {
+      assert.that("123456").endsWith(456)();
+    });
+    this.test("This test forgets to execute an assertion", function (assert) {
+      assert.that(true).is(true);
+    });
   });
   tests.module("Demonstrating the variable logging (these should fail)", function () {
     this.test("Number, String", function (assert) {

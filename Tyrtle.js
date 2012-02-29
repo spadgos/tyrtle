@@ -1,7 +1,7 @@
 /*!
  * Tyrtle - A JavaScript Unit Testing Framework
  *
- * Copyright (c) 2011 Nick Fisher
+ * Copyright (c) 2011-2012 Nick Fisher
  * Distributed under the terms of the LGPL
  * http://www.gnu.org/licenses/lgpl.html
  */
@@ -26,8 +26,9 @@
     setParams,
     root,
     runningInNode,
-    moduleAssertions = null, // the extra assertions added by an individual module
-    currentTestAssertions    // a counter for the number of assertions run in an individual test
+    unexecutedAssertions = 0, // the count of assertions created minus the number of assertions executed.
+    moduleAssertions = null,  // the extra assertions added by an individual module
+    currentTestAssertions     // a counter for the number of assertions run in an individual test
   ;
   // Gets the global object, regardless of whether run as ES3, ES5 or ES5 Strict Mode.
   root = (function () {
@@ -784,7 +785,7 @@
        *  @protected
        */
       run : function (callback) {
-        var start, success, handleError, test = this;
+        var start, success, handleError, test = this, originalUnexecutedAssertions;
         success = function () {
           test.runTime = new Date() - start;
           test.status = PASS;
@@ -812,14 +813,25 @@
             this.body(function (variables) {
               variables = variables || {};
               try {
-                currentTestAssertions = 0; // this is incremented by the `since` function
+                // this is incremented by the `since` function
+                currentTestAssertions = 0;
+
+                // remember how many unexecuted assertion there were at the start
+                originalUnexecutedAssertions = unexecutedAssertions;
                 test.asyncFn.call(variables, assert);
+
                 if (test.expectedAssertions !== -1) {
                   assert.that(currentTestAssertions)
                       .is(test.expectedAssertions)
                       .since("Incorrect number of assertions made by this test.")
                   ;
                 }
+                // check that no assertions were left unexecuted.
+                assert
+                  .that(unexecutedAssertions - originalUnexecutedAssertions)
+                  .is(0)
+                  .since("This test defines assertions which are never executed");
+
                 success();
               } catch (ee) {
                 handleError(ee);
@@ -827,6 +839,7 @@
             });
           } else {
             currentTestAssertions = 0;
+            originalUnexecutedAssertions = unexecutedAssertions;
             this.body(assert);
             if (test.expectedAssertions !== -1) {
               assert.that(currentTestAssertions)
@@ -834,6 +847,11 @@
                   .since("Incorrect number of assertions made by this test.")
               ;
             }
+            // check that no assertions were left unexecuted.
+            assert
+              .that(unexecutedAssertions - originalUnexecutedAssertions)
+              .is(0)
+              .since("This test defines assertions which are never executed");
             success();
           }
         } catch (e) {
@@ -887,7 +905,10 @@
   //  Assertions  //
   //////////////////
   (function () {
-    var assertions, build, handleAssertionResult, internalAssertionCount = 0;
+    var assertions,
+        build,
+        handleAssertionResult,
+        internalAssertionCount = 0;
     assertions = {
       /**
        * Assert that two values are not identical. Uses strict equality checking: `!==`.
@@ -1273,18 +1294,25 @@
      */
     build = function (condition, message/*, args */) {
       var args = Array.prototype.slice.call(arguments, 2),
-        since
-      ;
+          since;
+      ++unexecutedAssertions;
       since = function (userMessage) {
         try {
           if (internalAssertionCount++ === 0) {
             ++currentTestAssertions;
+          }
+          // if this is the first time we've executed this assertion, then decrease the counter, and don't count this
+          // one again
+          if (!since.executed) {
+            --unexecutedAssertions;
+            since.executed = true;
           }
           handleAssertionResult(condition.apply(assert, args), args, message, userMessage);
         } finally {
           --internalAssertionCount;
         }
       };
+      since.executed = false;
       since.since = since;
       return since;
     };

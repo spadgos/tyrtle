@@ -568,7 +568,7 @@ asyncTest("Globally added assertions", function () {
   });
   t.run();
 });
-asyncTest("Assertion functions has access to other assertions via this", function () {
+asyncTest("Assertion functions have access to other assertions via this", function () {
   var t, passing = [], failing = [];
   t = new Tyrtle({
     callback : function () {
@@ -600,7 +600,7 @@ asyncTest("Assertion functions has access to other assertions via this", functio
     passing.push(this.test("passing", function (assert) {
       assert(true).globalA()("foo");
       assert(true).globalB()("foo");
-      assert(true).localA();
+      assert(true).localA()();
       assert('woo').globalToLocal()();
     }));
     failing.push(this.test("failing", function (assert) {
@@ -653,6 +653,33 @@ asyncTest("Assertions calling other assertions do not raise the expected count",
       assert(true).globalB()("foo");
       assert(true).localA()();
       assert('woo').globalToLocal()();
+    }));
+  });
+  t.run();
+});
+
+asyncTest("Unexecuted assertions are treated as an error", function () {
+  var t, passing = [], failing = [];
+  t = new Tyrtle({
+    callback: function () {
+      equal(t.passes, passing.length, "Incorrect number of passes");
+      equal(t.fails, failing.length, "Incorrect number of failures");
+      start();
+    }
+  });
+  t.module("a", function () {
+    failing.push(this.test("doesn't execute an assertion", function (assert) {
+      assert.that(4).is(4);
+    }));
+    failing.push(this.test("one unexecuted, one executed twice", function (assert) {
+      assert.that(4).is(4);
+      var a = assert.that(2 + 2).is(4);
+      a();
+      a('still');
+    }));
+    passing.push(this.test("delayed execution", function (assert) {
+      var a = assert.that(2 + 2).is(4);
+      a();
     }));
   });
   t.run();
