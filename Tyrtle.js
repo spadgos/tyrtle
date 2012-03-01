@@ -342,6 +342,8 @@
       fails : 0,
       errors : 0,
       skips : 0,
+      startTime: 0,
+      runTime: -1,
       ////
       /**
        * Create a new test module and add it to this instance of Tyrtle
@@ -374,11 +376,13 @@
           l = this.modules.length,
           tyrtle = this
         ;
+        this.startTime = +(new Date());
         Tyrtle.renderer.beforeRun(this);
         runNext = function () {
           var mod;
           ++i;
           if (i === l) {
+            tyrtle.runTime = +(new Date()) - tyrtle.startTime;
             Tyrtle.renderer.afterRun(tyrtle);
             tyrtle.callback();
           } else {
