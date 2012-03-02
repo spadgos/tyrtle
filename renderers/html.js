@@ -121,6 +121,14 @@ Tyrtle.setRenderer(new (function () {
             log = (window.console.dir || window.console.log);
           }
           log.call(window.console, v);
+
+          // if it's an error, output the stack.
+          if (v && v.stack) {
+            window.console.log(v.stack);
+          }
+
+          // give global access to the file so that it can be inspected manually.
+          window.loggedVar = v;
         });
       }
     } else {
