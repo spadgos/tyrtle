@@ -911,28 +911,10 @@
   (function () {
     var assertions,
         build,
+        invert,
         handleAssertionResult,
         internalAssertionCount = 0;
     assertions = {
-      /**
-       * Assert that two values are not identical. Uses strict equality checking: `!==`.
-       *
-       * @param {*} unexpected The value which should be different
-       */
-      not : function (unexpected) {
-        return build(
-          function (a, un) {
-            if (a !== a && un !== un) {
-              return false;
-            } else {
-              return a !== un;
-            }
-          },
-          "Actual value was the same as the unexpected value {0}",
-          this.subject,
-          unexpected
-        );
-      },
       /**
        * Assert that a value is truthy, (`subject == true`)
        */
@@ -1232,6 +1214,25 @@
           expected
         );
       };
+      /**
+       * Assert that two values are not identical. Uses strict equality checking: `!==`.
+       *
+       * @param {*} unexpected The value which should be different
+       */
+      is.not = function (unexpected) {
+        return build(
+          function (a, un) {
+            if (a !== a && un !== un) {
+              return false;
+            } else {
+              return a !== un;
+            }
+          },
+          "Actual value was the same as the unexpected value {0}",
+          this.subject,
+          unexpected
+        );
+      };
       // Copy the regular functions onto the new assertion object, importantly, binding them to the function.
       // Without this binding, then it would be more difficult to reuse assertions like this:
       //  var a = assert(x)(3);
@@ -1241,12 +1242,18 @@
         is[key] = function () {
           return fn.apply(is, arguments);
         };
+        is.not[key] = function () {
+          return invert(fn.apply(is, arguments));
+        };
       });
       // Copy the module-specific functions onto the assertion object
       // The syntax for these is simpler than the built-in ones
       each(moduleAssertions, function (fn, key) {
         is[key] = function () {
           return build.apply(null, [fn, "", is.subject].concat([].slice.apply(arguments)));
+        };
+        is.not[key] = function () {
+          return invert(build.apply(null, [fn, "", is.subject].concat([].slice.apply(arguments))));
         };
       });
 
@@ -1320,6 +1327,26 @@
       since.since = since;
       return since;
     };
+
+    invert = function (since) {
+      return function (userMessage) {
+        var ok = false,
+            message;
+        try {
+          since(userMessage);
+          message = 'The assertion passed when it was not supposed to';
+        } catch (e) {
+          if (!(e instanceof AssertionError)) {
+            throw e;
+          } else {
+            message = e.message;
+            ok = true;
+          }
+        }
+        handleAssertionResult(ok, [], message, userMessage);
+      };
+    };
+
     extend(Tyrtle, {
       /**
        *  Global assertions, added to all modules of all instances of Tyrtle

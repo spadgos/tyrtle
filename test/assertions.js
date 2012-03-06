@@ -97,6 +97,13 @@ asyncTest("Tyrtle assertions", function () {
     var undef, CustomError = function () {},
       myObj, handleFoo, handleBar
     ;
+
+    this.addAssertions({
+      cool: function (subject) {
+        return subject === 'nickf';
+      }
+    });
+
     this.test("is", function (assert) {
       var x = 3;
       assert.that(x).is(3).since("x should be three");
@@ -252,8 +259,29 @@ asyncTest("Tyrtle assertions", function () {
       }
     });
 
+    this.test('.not.', function (assert) {
+      // `not` assertions
+      assert.that('hello').not.startsWith('foo')('not startsWith failed');
+    });
+
+    this.test('custom assertions', function (assert) {
+      assert.that('nickf').is.cool()();
+    });
+    this.test('negated custom assertions', function (assert) {
+      assert.that('stubbing your toe').is.not.cool()();
+    });
   });
   t.module("failing tests", function () {
+    this.addAssertions({
+      biggerThan: function (subject, actual) {
+        return subject > actual;
+      },
+      malformedAssertion: function () {
+        var x = 0;
+        x();
+      }
+    });
+
     this.test("Equality checking is strict", function (assert) {
       var x = 3;
       assert.that(x).is("3").since("Comparing to a string should fail");
@@ -356,6 +384,46 @@ asyncTest("Tyrtle assertions", function () {
       } finally {
         Myrtle.releaseAll();
       }
+    });
+
+    this.test('.not.', function (assert) {
+      assert.that('hello').not.startsWith('hell')();
+    });
+
+    this.test('custom assertions', function (assert) {
+      assert.that(5).is.biggerThan(10)();
+    });
+    this.test('negated custom assertions', function (assert) {
+      assert.that(10).is.not.biggerThan(5)();
+    });
+    this.test('Errors in negated assertions are still errors', function (assert) {
+      assert.that(true).is.malformedAssertion()();
+    });
+  });
+  t.run();
+});
+
+asyncTest("Negated assertions have sensible messages", function () {
+  var t = new Tyrtle({
+    callback: function () {
+      var tests = this.modules[0].tests;
+      equal(tests[0].statusMessage, "Failed: The assertion passed when it was not supposed to");
+      equal(tests[1].statusMessage, "Failed: The assertion passed when it was not supposed to: word should not start with h");
+      equal(tests[2].statusMessage, "Passed");
+      start();
+    }
+  });
+  t.module("foo", function () {
+    this.test("a", function (assert) {
+      assert.that('hello').not.startsWith('h')();
+    });
+    this.test("b", function (assert) {
+      var word = 'hello';
+      assert.that(word).not.startsWith('h')('word should not start with h');
+    });
+    this.test("c", function (assert) {
+      var word = 'hello';
+      assert.that(word).not.startsWith('a')('word should not start with a');
     });
   });
   t.run();
