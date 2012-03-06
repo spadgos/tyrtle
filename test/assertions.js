@@ -75,32 +75,51 @@ asyncTest("Assertions can be reused", function () {
 asyncTest("Tyrtle assertions", function () {
   var t = new Tyrtle({
     callback : function () {
-      equal(t.passes, t.modules[0].tests.length, "All tests should have passed in the first module");
-      equal(t.fails, t.modules[1].tests.length, "All tests should have failed in the second module");
+      var i, l, mod, test, m, should;
+
+      for (m = 0; m <= 1; ++m) {
+        mod = this.modules[m];
+        for (i = 0, l = mod.tests.length; i < l; ++i) {
+          test = mod.tests[i];
+          should = m === 0 ? 'PASS' : 'FAIL';
+          equal(test.status, Tyrtle[should], test.name + " should " + should.toLowerCase());
+        }
+      }
+      mod = this.modules[1];
+      for (i = 0, l = mod.tests.length; i < l; ++i) {
+        test = mod.tests[i];
+        equal(test.status, Tyrtle.FAIL, test.name);
+      }
       start();
     }
   });
   t.module("Passing tests", function () {
-    this.test("Passing tests", function (assert) {
-      var x = 3, undef, a, CustomError = function () {},
-        myObj, handleFoo, handleBar
-      ;
+    var undef, CustomError = function () {},
+      myObj, handleFoo, handleBar
+    ;
+    this.test("is", function (assert) {
+      var x = 3;
       assert.that(x).is(3).since("x should be three");
       assert.that(x).is(3)("x should be three");
       assert(x).is(3)("x should be three");
       assert(x)(3)("x should be three");
-
+    });
+    this.test('not()', function (assert) {
+      var x = 3;
       assert.that(x).is.not('3').since("x should not be a string");
       assert.that(x).is.not('3')("x should not be a string");
       assert(x).is.not('3')("x should not be a string");
       assert(x).not('3')('x should not be a string');
-
       assert.that(x).not(undef)("x should not be undefined");
       assert.that(x).is.not(undef)("x should not be undefined when using `is`");
+    });
 
+    this.test('testing against NaN', function (assert) {
       assert.that(Math.sqrt(-1)).is(NaN)("Should be able to compare to NaN");
       assert.that(Math.sqrt(4)).is.not(NaN)("Should be able to compare against NaN");
+    });
 
+    this.test('ofType', function (assert) {
       // ofType
       assert.that(3).is.ofType('number').since('3 should be a number');
       assert('3').ofType('string')('"3" should be a string');
@@ -114,25 +133,42 @@ asyncTest("Tyrtle assertions", function () {
       assert.that(new Date()).is.ofType('object')('dates are objects');
       assert.that(undef).is.ofType('undefined')('undefined variables are undefined');
       assert.that(function () {}).is.ofType('function')();
+    });
 
+    this.test('ok', function (assert) {
       // ok
       assert(true).ok()("True should be ok");
       assert.that(1).ok()("Non-zero numbers should be ok");
       assert.that({}).is.ok()("All objects (even empty) are ok");
+    });
 
+    this.test('matches', function (assert) {
       // matches
       assert.that("abbbc").matches(/ab+c/)();
+    });
 
+    this.test('endsWith', function (assert) {
       // endsWith
-      a = assert.that("abcdef");
+      var a = assert.that("abcdef");
       a.endsWith("def")();
       a.endsWith("abcdef")();
+    });
+
+    this.test('startsWith', function (assert) {
+      var a = assert.that("abcdef");
       a.startsWith("abc")();
       a.startsWith("abcdef")();
+    });
+
+    this.test('contains', function (assert) {
+      var a = assert.that("abcdef");
       a.contains("bcd")();
       a.contains("abc")();
       a.contains("abcdef")();
+    });
 
+    this.test('willThrow', function (assert) {
+      var a;
       // willThrow
       a = assert.that(function () {
         throw 'abc';
@@ -152,9 +188,15 @@ asyncTest("Tyrtle assertions", function () {
       assert.that(function () {
         throw new CustomError();
       }).willThrow(CustomError)();
+    });
+
+    this.test('wontThrow', function (assert) {
 
       // wontThrow
       assert.that(function () {}).wontThrow()();
+    });
+
+    this.test('equals', function (assert) {
 
       //object equality
       assert
@@ -181,6 +223,9 @@ asyncTest("Tyrtle assertions", function () {
         .equals({a : {b : 'c'}, d : {e : [/f/]}})()
       ;
       assert.that(new Date(123456789)).equals(new Date(123456789))();
+    });
+
+    this.test('Myrtle', function (assert) {
 
       try {
         myObj = {
@@ -206,6 +251,7 @@ asyncTest("Tyrtle assertions", function () {
         Myrtle.releaseAll();
       }
     });
+
   });
   t.module("failing tests", function () {
     this.test("Equality checking is strict", function (assert) {
