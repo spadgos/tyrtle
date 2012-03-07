@@ -1328,12 +1328,12 @@
       return since;
     };
 
-    invert = function (since) {
-      return function (userMessage) {
+    invert = function (normalSince) {
+      var since = function (userMessage) {
         var ok = false,
             message;
         try {
-          since(userMessage);
+          normalSince(userMessage);
           message = 'The assertion passed when it was not supposed to';
         } catch (e) {
           if (!(e instanceof AssertionError)) {
@@ -1345,6 +1345,8 @@
         }
         handleAssertionResult(ok, [], message, userMessage);
       };
+      since.since = since;
+      return since;
     };
 
     extend(Tyrtle, {

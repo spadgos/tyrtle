@@ -270,6 +270,21 @@ asyncTest("Tyrtle assertions", function () {
     this.test('negated custom assertions', function (assert) {
       assert.that('stubbing your toe').is.not.cool()();
     });
+    this.test('Negations have the same interface as regular assertions', function (assert) {
+      assert(false).not(true)();
+      assert(false).is.not(true)();
+      assert(false).is.not(true).since();
+      assert.that(false).not(true)();
+      assert.that(false).is.not(true)();
+      assert.that(false).is.not(true).since();
+
+      assert(false).not.ok()();
+      assert(false).is.not.ok()();
+      assert(false).is.not.ok().since();
+      assert.that(false).not.ok()();
+      assert.that(false).is.not.ok()();
+      assert.that(false).is.not.ok().since();
+    });
   });
   t.module("failing tests", function () {
     this.addAssertions({
