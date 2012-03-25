@@ -1029,6 +1029,9 @@
         } else {
           return a !== un;
         }
+      },
+      nullish: function (a) {
+        return a == null;
       }
     };
     assertions = {
@@ -1039,6 +1042,14 @@
         return build(
           bodies.ok,
           "Actual value {0} was not truthy as expected",
+          this.subject
+        );
+      },
+
+      nullish: function () {
+        return build(
+          bodies.nullish,
+          "Actual value {0} was not null or undefined as expected",
           this.subject
         );
       },
@@ -1203,7 +1214,7 @@
           this.subject,
           numTimes
         );
-      },
+      }
     };
     /**
      * The assertion starting point. This is the actual function passed in to each test. The value passed as an
@@ -1262,7 +1273,7 @@
         };
       });
       // Copy the module-specific functions onto the assertion object
-      // The syntax for these is simpler than the built-in ones
+      // The syntax for these is simpler than the built-in ones, so we have to do the heavy lifting here
       each(moduleAssertions, function (fn, key) {
         is[key] = function () {
           return build.apply(null, [fn, "", is.subject].concat([].slice.apply(arguments)));

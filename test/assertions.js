@@ -232,6 +232,20 @@ asyncTest("Tyrtle assertions", function () {
       assert.that(new Date(123456789)).equals(new Date(123456789))();
     });
 
+    this.test('nullish', function (assert) {
+      var undef, obj = {}, arr = [];
+      assert.that(null).is.nullish()();
+      assert.that(undef).is.nullish()();
+      assert.that(obj.foo).is.nullish()();
+      assert.that(arr[1]).is.nullish()();
+
+      assert.that(0).is.not.nullish()();
+      assert.that(false).is.not.nullish()();
+      assert.that('').is.not.nullish()();
+      assert.that(obj).is.not.nullish()();
+      assert.that(arr).is.not.nullish()();
+    });
+
     this.test('Myrtle', function (assert) {
 
       try {
