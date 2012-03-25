@@ -100,9 +100,24 @@ h2 > a:hover {
   margin: 0;
   padding: 10px 15px 20px;
 }
-.tests > li > a {
-  padding-left: .4em;
+.tests > li > a,
+.tip {
   font-size: 80%;
+  color: #999;
+}
+.tests > li > a,
+li.pass .assertionCount {
+  padding-left: .4em;
+}
+li.pass .assertionCount.zeroAssertions {
+  font-size: 100%;
+  color: red;
+  font-weight: bold;
+}
+li.skip .assertionCount {
+  display: none;
+}
+.tests > li > a {
   -moz-transition: opacity 0.3s;
   transition: opacity 0.3s;
   -webkit-transition: opacity 0.3s;
@@ -139,11 +154,11 @@ li.pending {
 .variable.string:before,
 .variable.string:after {
   content: '"';
-  color: grey;
+  color: gray;
 }
 .variable.null,
 .variable.undefined {
-  color: grey;
+  color: gray;
   font-style: italic;
 }
 .variable.regexp {

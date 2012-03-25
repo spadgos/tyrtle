@@ -758,6 +758,7 @@
       exception : null,   // Any thrown error is stored here (including AssertionErrors)
       asyncFn : null,
       expectedAssertions : -1,
+      assertionCount: 0,
       ///////////////
       /**
        *  Skip this test.
@@ -814,6 +815,8 @@
         try {
           start = new Date();
           if (this.asyncFn) {
+
+            // actually executes the asyncTest here.
             this.body(function (variables) {
               variables = variables || {};
               try {
@@ -844,7 +847,9 @@
           } else {
             currentTestAssertions = 0;
             originalUnexecutedAssertions = unexecutedAssertions;
+            // executes the synchronous test
             this.body(assert);
+            this.assertionCount = currentTestAssertions;
             if (test.expectedAssertions !== -1) {
               assert.that(currentTestAssertions)
                   .is(test.expectedAssertions)

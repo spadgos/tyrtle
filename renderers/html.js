@@ -281,12 +281,18 @@ Tyrtle.setRenderer(new (function () {
   HtmlRenderer.prototype.afterTest = function (test, module, tyrtle) {
     var msg;
     msg = formatString(
-      test.statusMessage + (test.runTime !== -1 ? formatString(false, ' {0}ms', test.runTime) : "")
+      test.statusMessage + (test.runTime !== -1 ? formatString(false, ' <span class="tip">{0}ms</span>', test.runTime) : "")
     );
 
     if (test.error) {
       msg += formatString(' (<span class="thrownError">Error: {0}</span>)', test.error);
     }
+
+    msg += ' <span class="tip assertionCount '
+      + (test.assertionCount === 0 ? 'zeroAssertions' : '')
+      + '" title="Assertions executed by this test:' + test.assertionCount + '">'
+      + test.assertionCount + '</span>';
+
     test.$container
       .removeClass('pending')
       .addClass(test.status === Tyrtle.PASS ? "pass" : (test.status === Tyrtle.FAIL ? 'fail' : 'skip'))
@@ -300,9 +306,6 @@ Tyrtle.setRenderer(new (function () {
     if (this.testsLeft) {
       this.testsLeft -= mod.tests.length;
       completePercent = Math.floor((this.totalTests - this.testsLeft) / this.totalTests * 100);
-      //tyrtle.$status.text(completePercent + "%");
-      //tyrtle.$status.text((new Array(completePercent + 1)).join("|"));
-
       tyrtle.$status.text(
         tyrtle.fails + "/" + (this.totalTests - this.testsLeft)
         + " (" + completePercent + "%) "
