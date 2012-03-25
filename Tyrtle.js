@@ -913,16 +913,131 @@
         build,
         invert,
         handleAssertionResult,
-        internalAssertionCount = 0;
+        internalAssertionCount = 0,
+        bodies;
+    bodies = {
+      ok: function (a) {
+        return !!a;
+      },
+      ofType: function (a, e) {
+        var type = typeof a;
+//#JSCOVERAGE_IF typeof /a/ === 'function'
+        // webkit (incorrectly?) reports regexes as functions. Normalize this to 'object'.
+        if (type === 'function' && a.constructor === RegExp) {
+          type = 'object';
+        }
+//#JSCOVERAGE_ENDIF
+        switch (e.toLowerCase()) {
+        case 'array' :
+          return isArray(a);
+        case 'date' :
+          return isDate(a);
+        case 'regexp' :
+          return isRegExp(a);
+        default :
+          return type === e;
+        }
+      },
+      matches: function (a, m) {
+        return m.test(a);
+      },
+      startsWith: function (a, n) {
+        if (typeof a !== 'string') {
+          return [
+            "Actual value {0} is of type {2}, therefore it can not start with {1} as expected",
+            typeof a
+          ];
+        }
+        return a.length >= n.length && n === a.substr(0, n.length);
+      },
+      endsWith: function (a, n) {
+        if (typeof a !== 'string') {
+          return [
+            "Actual value {0} is of type {2}, therefore it can not end with {1} as expected",
+            typeof a
+          ];
+        }
+        return a.length >= n.length && n === a.substr(-n.length);
+      },
+      contains: function (a, n) {
+        return a.indexOf(n) !== -1 || (typeof a === 'string' ? "%1 substring {1}" : "%1 element {1}");
+      },
+      willThrow: function (f, expectedError) {
+        try {
+          f();
+          return "The function unexpectedly threw no errors";
+        } catch (e) {
+          if (expectedError) {
+            var noMatch = [
+              "An error {2} was thrown, but it did not match the expected error {1}",
+              e.message || e
+            ];
+            if (typeof expectedError === 'string') {
+              if (expectedError !== (e.message || e)) {
+                return noMatch;
+              }
+            } else if (isRegExp(expectedError)) {
+              if (!expectedError.test(e.message || e)) {
+                return [
+                  "An error {2} was thrown, but it did not match the expected error {1}",
+                  e.message || e
+                ];
+              }
+            } else if (typeof expectedError === 'function' && !(e instanceof expectedError)) {
+              return [
+                "An error {2} was thrown, but it was not an instance of {1} as expected",
+                e
+              ];
+            }
+            return true;
+          } else {
+            return true;
+          }
+        }
+      },
+      wontThrow: function (f) {
+        try {
+          f();
+          return true;
+        } catch (e) {
+          return ["%1 {1}", e];
+        }
+      },
+      called: function (subject, numTimes) {
+        var cc;
+        if (subject && typeof subject.callCount === 'function') {
+          cc = subject.callCount();
+          if (numTimes != null) {
+            return cc === numTimes || ["%1", cc];
+          } else {
+            return cc > 0 || "Function was not called";
+          }
+        } else {
+          return "Object is not a Myrtle handle";
+        }
+      },
+      is: function (a, e) {
+        if (a !== a) { // NaN
+          return e !== e;
+        } else {
+          return a === e;
+        }
+      },
+      not: function (a, un) {
+        if (a !== a && un !== un) {
+          return false;
+        } else {
+          return a !== un;
+        }
+      }
+    };
     assertions = {
       /**
        * Assert that a value is truthy, (`subject == true`)
        */
-      ok : function () {
+      ok: function () {
         return build(
-          function (a) {
-            return !!a;
-          },
+          bodies.ok,
           "Actual value {0} was not truthy as expected",
           this.subject
         );
@@ -947,25 +1062,7 @@
        */
       ofType : function (expectedType) {
         return build(
-          function (a, e) {
-            var type = typeof a;
-//#JSCOVERAGE_IF typeof /a/ === 'function'
-            // webkit (incorrectly?) reports regexes as functions. Normalize this to 'object'.
-            if (type === 'function' && a.constructor === RegExp) {
-              type = 'object';
-            }
-//#JSCOVERAGE_ENDIF
-            switch (e.toLowerCase()) {
-            case 'array' :
-              return isArray(a);
-            case 'date' :
-              return isDate(a);
-            case 'regexp' :
-              return isRegExp(a);
-            default :
-              return type === e;
-            }
-          },
+          bodies.ofType,
           "Type of value {0} was not {1} as expected",
           this.subject,
           expectedType
@@ -978,9 +1075,7 @@
        */
       matches : function (match) {
         return build(
-          function (a, m) {
-            return m.test(a);
-          },
+          bodies.matches,
           "{0} does not match the expected {1}",
           this.subject,
           match
@@ -993,15 +1088,7 @@
        */
       startsWith : function (needle) {
         return build(
-          function (a, n) {
-            if (typeof a !== 'string') {
-              return [
-                "Actual value {0} is of type {2}, therefore it can not start with {1} as expected",
-                typeof a
-              ];
-            }
-            return a.length >= n.length && n === a.substr(0, n.length);
-          },
+          bodies.startsWith,
           "Actual value {0} does not begin with {1} as expected",
           this.subject,
           needle
@@ -1014,15 +1101,7 @@
        */
       endsWith : function (needle) {
         return build(
-          function (a, n) {
-            if (typeof a !== 'string') {
-              return [
-                "Actual value {0} is of type {2}, therefore it can not end with {1} as expected",
-                typeof a
-              ];
-            }
-            return a.length >= n.length && n === a.substr(-n.length);
-          },
+          bodies.endsWith,
           "Actual value {0} does not end with {1} as expected",
           this.subject,
           needle
@@ -1036,9 +1115,7 @@
        */
       contains : function (needle) {
         return build(
-          function (a, n) {
-            return a.indexOf(n) !== -1 || (typeof a === 'string' ? "%1 substring {1}" : "%1 element {1}");
-          },
+          bodies.contains,
           "Actual value {0} does not contain the expected",
           this.subject,
           needle
@@ -1065,38 +1142,7 @@
        */
       willThrow : function (expectedError) {
         return build(
-          function (f, expectedError) {
-            try {
-              f();
-              return "The function unexpectedly threw no errors";
-            } catch (e) {
-              if (expectedError) {
-                if (typeof expectedError === 'string') {
-                  if (expectedError !== (e.message || e)) {
-                    return [
-                      "An error {2} was thrown, but it did not match the expected error {1}",
-                      e.message || e
-                    ];
-                  }
-                } else if (isRegExp(expectedError)) {
-                  if (!expectedError.test(e.message || e)) {
-                    return [
-                      "An error {2} was thrown, but it did not match the expected error {1}",
-                      e.message || e
-                    ];
-                  }
-                } else if (typeof expectedError === 'function' && !(e instanceof expectedError)) {
-                  return [
-                    "An error {2} was thrown, but it was not an instance of {1} as expected",
-                    e
-                  ];
-                }
-                return true;
-              } else {
-                return true;
-              }
-            }
-          },
+          bodies.willThrow,
           "",
           this.subject, // a function
           expectedError
@@ -1110,14 +1156,7 @@
        */
       wontThrow : function () {
         return build(
-          function (f) {
-            try {
-              f();
-              return true;
-            } catch (e) {
-              return ["%1 {1}", e];
-            }
-          },
+          bodies.wontThrow,
           "Function unexpectedly raised an error",
           this.subject
         );
@@ -1159,24 +1198,12 @@
        */
       called : function (numTimes) {
         return build(
-          function (subject, numTimes) {
-            var cc;
-            if (subject && typeof subject.callCount === 'function') {
-              cc = subject.callCount();
-              if (numTimes != null) {
-                return cc === numTimes || ["%1", cc];
-              } else {
-                return cc > 0 || "Function was not called";
-              }
-            } else {
-              return "Object is not a Myrtle handle";
-            }
-          },
+          bodies.called,
           "Function call count is {2} when a value of {1} was expected",
           this.subject,
           numTimes
         );
-      }
+      },
     };
     /**
      * The assertion starting point. This is the actual function passed in to each test. The value passed as an
@@ -1202,13 +1229,7 @@
       is = function (expected) {
         // `is`
         return build(
-          function (a, e) {
-            if (a !== a) { // NaN
-              return e !== e;
-            } else {
-              return a === e;
-            }
-          },
+          bodies.is,
           "Actual value {0} did not match expected value {1}",
           is.subject,
           expected
@@ -1221,13 +1242,7 @@
        */
       is.not = function (unexpected) {
         return build(
-          function (a, un) {
-            if (a !== a && un !== un) {
-              return false;
-            } else {
-              return a !== un;
-            }
-          },
+          bodies.not,
           "Actual value was the same as the unexpected value {0}",
           this.subject,
           unexpected
