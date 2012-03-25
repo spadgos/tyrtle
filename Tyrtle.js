@@ -833,6 +833,7 @@
                       .since("Incorrect number of assertions made by this test.")
                   ;
                 }
+                test.assertionCount = currentTestAssertions;
                 // check that no assertions were left unexecuted.
                 assert
                   .that(unexecutedAssertions - originalUnexecutedAssertions)
