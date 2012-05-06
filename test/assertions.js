@@ -426,7 +426,7 @@ asyncTest("Tyrtle assertions", function () {
       assert.that(10).is.not.biggerThan(5)();
     });
     this.test('Errors in negated assertions are still errors', function (assert) {
-      assert.that(true).is.malformedAssertion()();
+      assert.that(true).is.not.malformedAssertion()();
     });
   });
   t.run();
