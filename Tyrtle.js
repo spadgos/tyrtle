@@ -434,21 +434,22 @@
       body.call(this);
     };
     addHelper = function (name, fn) {
-      if (this.helpers[name]) {
-        throw new Error("This module already has a " + name + " helper function.");
+      if (!this.helpers[name]) {
+        this.helpers[name] = [];
       }
-      this.helpers[name] = fn;
+      this.helpers[name].push(fn);
     };
-    runHelper = function (helper, callback, catchBlock) {
-      if (helper) {
+    runHelper = function (helpers, callback, catchBlock) {
+      if (helpers && helpers.length) {
+        var helper = helpers[0];
         try {
           if (helper.length) {
             helper(function () {
-              defer(callback);
+              runHelper(helpers.slice(1), callback, catchBlock);
             });
           } else {
             helper();
-            callback();
+            runHelper(helpers.slice(1), callback, catchBlock);
           }
         } catch (e) {
           catchBlock(e);
@@ -563,8 +564,7 @@
         ;
         runNext = function () {
           var test;
-          ++i;
-          if (i >= l) { // we've done all the tests, break the loop.
+          if (++i >= l) { // we've done all the tests, break the loop.
             cleanUpAssertions();
             runHelper(mod.helpers.afterAll, callback, function (e) {
               test = mod.tests[mod.tests.length - 1];
