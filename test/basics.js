@@ -183,3 +183,9 @@ asyncTest("Test filtering", function () {
   });
   t.run();
 });
+test("Modules must have a name", function () {
+  var t = new Tyrtle();
+  raises(function () {
+    t.module(function () {});
+  }, /Module instantiated without a name./);
+});
