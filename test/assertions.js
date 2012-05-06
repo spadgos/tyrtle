@@ -644,16 +644,23 @@ asyncTest("Expects assertions", function () {
 
       equal(t.modules[0].tests[2].status, Tyrtle.FAIL);
       equal(t.modules[0].tests[3].status, Tyrtle.FAIL);
+
+      equal(t.modules[0].tests[4].status, Tyrtle.PASS);
+      equal(t.modules[0].tests[5].status, Tyrtle.PASS);
+
+      equal(t.modules[0].tests[6].status, Tyrtle.FAIL);
+      equal(t.modules[0].tests[7].status, Tyrtle.FAIL);
+
       start();
     }
   });
   t.module("foo", function () {
-    this.test("a", function (assert) {
+    this.test("correct synchronous", function (assert) {
       assert(3).is(3)();
       this.expect(2);
       assert(3).is(3)();
     });
-    this.test("b", function (done) {
+    this.test("correct async", function (done) {
       this.expect(2);
       done({ x : 1 });
     }, function (assert) {
@@ -661,13 +668,35 @@ asyncTest("Expects assertions", function () {
       assert(this.x + 1)(2)();
     });
 
-    this.test("c", function (assert) {
+    this.test("Incorrect synchronous", function (assert) {
       assert(3).is(3)();
       this.expect(1);
       assert(3).is(3)();
     });
-    this.test("d", function (done) {
+    this.test("Incorrect async", function (done) {
       this.expect(3);
+      done({ x : 1 });
+    }, function (assert) {
+      assert(this.x)(1)();
+      assert(this.x + 1)(2)();
+    });
+
+    this.test("Correct func param synchronous", 2, function (assert) {
+      assert(3).is(3)();
+      assert(3).is(3)();
+    });
+    this.test("Correct func param async", 2, function (done) {
+      done({ x : 1 });
+    }, function (assert) {
+      assert(this.x)(1)();
+      assert(this.x + 1)(2)();
+    });
+
+    this.test("Incorrect func param synchronous", 1, function (assert) {
+      assert(3).is(3)();
+      assert(3).is(3)();
+    });
+    this.test("Incorrect func param async", 1, function (done) {
       done({ x : 1 });
     }, function (assert) {
       assert(this.x)(1)();
