@@ -231,33 +231,6 @@ asyncTest("Errors in the before/afterAll are handled when rerunning tests", func
   });
   t.run();
 });
-test("Helpers can only be added once", function () {
-  var t = new Tyrtle();
-  raises(function () {
-    t.module('a', function () {
-      this.before(function () {});
-      this.before(function () {});
-    });
-  }, /already has a/);
-  raises(function () {
-    t.module('a', function () {
-      this.after(function () {});
-      this.after(function () {});
-    });
-  }, /already has a/);
-  raises(function () {
-    t.module('a', function () {
-      this.beforeAll(function () {});
-      this.beforeAll(function () {});
-    });
-  }, /already has a/);
-  raises(function () {
-    t.module('a', function () {
-      this.afterAll(function () {});
-      this.afterAll(function () {});
-    });
-  }, /already has a/);
-});
 
 asyncTest("Asynchronous befores and afters", function () {
   var t, testsRun = 0, befores = 0, afters = 0;
@@ -318,6 +291,106 @@ asyncTest("Befores and afters are given callbacks only if asked for", function (
     this.after(async);
     this.afterAll(async);
     this.test("a", function () {});
+  });
+  t.run();
+});
+
+asyncTest("Multiple befores and afters are allowed", function () {
+  var t, x;
+  expect(1);
+  t = new Tyrtle({
+    callback: function () {
+      start();
+      equal(x.join(', '), 'ba1, ba2, b1, b2, t1, a1, a2, b1, b2, t2, a1, a2, aa1, aa2');
+    }
+  });
+
+  t.module("Synchronous helpers", function () {
+    this.beforeAll(function () {
+      x = ['ba1'];
+    });
+    this.beforeAll(function () {
+      x.push('ba2');
+    });
+    this.before(function () {
+      x.push('b1');
+    });
+    this.before(function () {
+      x.push('b2');
+    });
+    this.afterAll(function () {
+      x.push('aa1');
+    });
+    this.afterAll(function () {
+      x.push('aa2');
+    });
+    this.after(function () {
+      x.push('a1');
+    });
+    this.after(function () {
+      x.push('a2');
+    });
+    this.test('one', function () {
+      x.push('t1');
+    });
+    this.test('two', function () {
+      x.push('t2');
+    });
+  });
+  t.run();
+});
+
+asyncTest("Multiple asynchronous befores and afters are allowed", function () {
+  var t, x;
+  expect(1);
+  t = new Tyrtle({
+    callback: function () {
+      start();
+      equal(x.join(', '), 'ba1, ba2, b1, b2, t1, a1, a2, b1, b2, t2, a1, a2, aa1, aa2');
+    }
+  });
+
+  t.module("Synchronous helpers", function () {
+    this.beforeAll(function (cb) {
+      x = ['ba1'];
+      cb();
+    });
+    this.beforeAll(function (cb) {
+      x.push('ba2');
+      cb();
+    });
+    this.before(function (cb) {
+      x.push('b1');
+      cb();
+    });
+    this.before(function (cb) {
+      x.push('b2');
+      cb();
+    });
+    this.afterAll(function (cb) {
+      x.push('aa1');
+      cb();
+    });
+    this.afterAll(function (cb) {
+      x.push('aa2');
+      cb();
+    });
+    this.after(function (cb) {
+      x.push('a1');
+      cb();
+    });
+    this.after(function (cb) {
+      x.push('a2');
+      cb();
+    });
+    this.test('one', function (cb) {
+      x.push('t1');
+      cb();
+    });
+    this.test('two', function (cb) {
+      x.push('t2');
+      cb();
+    });
   });
   t.run();
 });
