@@ -189,3 +189,12 @@ test("Modules must have a name", function () {
     t.module(function () {});
   }, /Module instantiated without a name./);
 });
+test("Tests must have a name", function () {
+  var t = new Tyrtle();
+  raises(function () {
+    t.module('a module', function () {
+      this.test(function () {});
+    });
+    t.run();
+  }, /Test instantiated without a name./);
+});

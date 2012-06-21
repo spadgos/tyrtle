@@ -744,6 +744,9 @@
       } else {
         this.expect(expectedAssertions);
       }
+      if (typeof name !== 'string') {
+        throw new Error('Test instantiated without a name.');
+      }
       this.name = name;
       this.body = body;
       this.asyncFn = asyncFn;
