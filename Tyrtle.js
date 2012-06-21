@@ -735,7 +735,7 @@
   // Test
   //
   (function () {
-    var incorrectNumAssertions;
+    var incorrectNumAssertions, runAssertions;
 
     Test = function (name, expectedAssertions, body, asyncFn) {
       if (typeof expectedAssertions !== 'number') {
@@ -822,71 +822,72 @@
 
             // actually executes the asyncTest here.
             this.body(function (variables) {
-              variables = variables || {};
-              try {
-                // this is incremented by the `since` function
-                currentTestAssertions = 0;
-
-                // remember how many unexecuted assertion there were at the start
-                originalUnexecutedAssertions = unexecutedAssertions;
-                test.asyncFn.call(variables, assert);
-
-                if (test.expectedAssertions !== -1) {
-                  assert.that(currentTestAssertions)
-                      .is(test.expectedAssertions)
-                      .since("Incorrect number of assertions made by this test.")
-                  ;
-                }
-                test.assertionCount = currentTestAssertions;
-                // check that no assertions were left unexecuted.
-                assert
-                  .that(unexecutedAssertions - originalUnexecutedAssertions)
-                  .is(0)
-                  .since("This test defines assertions which are never executed");
-
-
-                each(getKeys(root), function (newGlobal) {
-                  if (oldGlobals.indexOf(newGlobal) < 0) {
-                    throw new AssertionError('Test introduced new global variable "{0}"', [newGlobal]);
-                  }
-                });
-
-                success();
-              } catch (ee) {
-                handleError(ee);
-              }
+              runAssertions(test, {
+                assertions: function () {
+                  test.asyncFn.call(variables || {}, assert);
+                },
+                success: success,
+                failure: handleError,
+                oldGlobals: oldGlobals
+              });
             });
           } else {
-            currentTestAssertions = 0;
-            originalUnexecutedAssertions = unexecutedAssertions;
-            // executes the synchronous test
-            this.body(assert);
-            this.assertionCount = currentTestAssertions;
-            if (test.expectedAssertions !== -1) {
-              assert.that(currentTestAssertions)
-                  .is(test.expectedAssertions)
-                  .since("Incorrect number of assertions made by this test.")
-              ;
-            }
-            // check that no assertions were left unexecuted.
-            assert
-              .that(unexecutedAssertions - originalUnexecutedAssertions)
-              .is(0)
-              .since("This test defines assertions which are never executed");
-
-            each(getKeys(root), function (newGlobal) {
-              if (oldGlobals.indexOf(newGlobal) < 0) {
-                throw new AssertionError('Test introduced new global variable "{0}"', [newGlobal]);
-              }
+            runAssertions(test, {
+              assertions: function () {
+                test.body(assert);
+              },
+              success: success,
+              failure: handleError,
+              oldGlobals: oldGlobals
             });
-
-            success();
           }
         } catch (e) {
           handleError(e);
         }
       }
     });
+
+    runAssertions = function (test, options) {
+      var assertionsFn = options.assertions,
+          successFn = options.success,
+          oldGlobals = options.oldGlobals,
+          onError = options.failure,
+          originalUnexecutedAssertions;
+
+      try {
+        // this is incremented by the `since` function
+        currentTestAssertions = 0;
+
+        // remember how many unexecuted assertion there were at the start
+        originalUnexecutedAssertions = unexecutedAssertions;
+        assertionsFn();
+
+        if (test.expectedAssertions !== -1) {
+          assert
+            .that(currentTestAssertions)
+            .is(test.expectedAssertions)
+            .since("Incorrect number of assertions made by this test.");
+        }
+        test.assertionCount = currentTestAssertions;
+        // check that no assertions were left unexecuted.
+        assert
+          .that(unexecutedAssertions - originalUnexecutedAssertions)
+          .is(0)
+          .since("This test defines assertions which are never executed");
+
+
+        each(getKeys(root), function (newGlobal) {
+          if (oldGlobals.indexOf(newGlobal) < 0) {
+            throw new AssertionError('Test introduced new global variable "{0}"', [newGlobal]);
+          }
+        });
+
+        successFn();
+      } catch (ee) {
+        onError(ee);
+      }
+    };
+
   }());
 
   /**
