@@ -793,7 +793,7 @@
        *  @protected
        */
       run : function (callback) {
-        var start, success, handleError, test = this, originalUnexecutedAssertions;
+        var start, success, handleError, test = this, originalUnexecutedAssertions, oldGlobals;
         success = function () {
           test.runTime = new Date() - start;
           test.status = PASS;
@@ -816,6 +816,7 @@
           callback(test);
         };
         try {
+          oldGlobals = getKeys(root);
           start = new Date();
           if (this.asyncFn) {
 
@@ -843,6 +844,13 @@
                   .is(0)
                   .since("This test defines assertions which are never executed");
 
+
+                each(getKeys(root), function (newGlobal) {
+                  if (oldGlobals.indexOf(newGlobal) < 0) {
+                    throw new AssertionError('Test introduced new global variable "{0}"', [newGlobal]);
+                  }
+                });
+
                 success();
               } catch (ee) {
                 handleError(ee);
@@ -865,6 +873,13 @@
               .that(unexecutedAssertions - originalUnexecutedAssertions)
               .is(0)
               .since("This test defines assertions which are never executed");
+
+            each(getKeys(root), function (newGlobal) {
+              if (oldGlobals.indexOf(newGlobal) < 0) {
+                throw new AssertionError('Test introduced new global variable "{0}"', [newGlobal]);
+              }
+            });
+
             success();
           }
         } catch (e) {

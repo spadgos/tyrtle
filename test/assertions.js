@@ -856,3 +856,25 @@ asyncTest("Unexecuted assertions are treated as an error", function () {
   });
   t.run();
 });
+asyncTest("Leaking global objects are reported", function () {
+  var t;
+  t = new Tyrtle({
+    callback: function () {
+      equal(t.fails, 2, "Incorrect number of failures");
+      equal(t.modules[0].tests[0].statusMessage, "Failed: Test introduced new global variable \"__test_global__\"");
+      equal(t.modules[0].tests[1].statusMessage, "Failed: Test introduced new global variable \"__test_global2__\"");
+      start();
+      delete window.__test_global__;
+    }
+  });
+  t.module('a', function () {
+    this.test('Test', function (assert) {
+      window.__test_global__ = true;
+    });
+    this.test('Test 2', function (done) {
+      window.__test_global2__ = true;
+      done();
+    }, function (assert) {});
+  });
+  t.run();
+});
