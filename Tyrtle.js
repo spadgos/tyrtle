@@ -1440,7 +1440,7 @@
   });
 
 //#JSCOVERAGE_IF
-  if (typeof module !== 'undefined') {
+  if (typeof module !== 'undefined' && module.exports) {
     module.exports = Tyrtle;
   } else {
     root.Tyrtle = Tyrtle;
