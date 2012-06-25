@@ -16,6 +16,7 @@
     defer,
     noop,
     each,
+    slice = Array.prototype.slice,
     isArray,
     isFunction,
     isRegExp,
@@ -273,7 +274,7 @@
       afterModule    : noop,
       afterRun       : noop,
       templateString : function (message) {
-        var args = [].slice.call(arguments, 1);
+        var args = slice.call(arguments, 1);
         return message.replace(
           /\{([1-9][0-9]*|0)\}/g,
           function (str, p1) {
@@ -1301,10 +1302,10 @@
       // The syntax for these is simpler than the built-in ones, so we have to do the heavy lifting here
       each(moduleAssertions, function (fn, key) {
         is[key] = function () {
-          return build.apply(null, [fn, "", is.subject].concat([].slice.apply(arguments)));
+          return build.apply(null, [fn, "", is.subject].concat(slice.apply(arguments)));
         };
         is.not[key] = function () {
-          return invert(build.apply(null, [fn, "", is.subject].concat([].slice.apply(arguments))));
+          return invert(build.apply(null, [fn, "", is.subject].concat(slice.apply(arguments))));
         };
       });
 
@@ -1408,7 +1409,7 @@
       addAssertions : function (newAssertions) {
         each(newAssertions, function (fn, name) {
           assertions[name] = function () {
-            return build.apply(null, [fn, "", this.subject].concat([].slice.apply(arguments)));
+            return build.apply(null, [fn, "", this.subject].concat(slice.apply(arguments)));
           };
         });
       },
