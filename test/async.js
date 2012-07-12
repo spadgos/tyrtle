@@ -62,3 +62,22 @@ asyncTest("Errors in the asynchronous callback", function () {
   });
   t.run();
 });
+asyncTest("Callback function called more than once", function () {
+  var t, callCount = 0;
+  t = new Tyrtle({
+    callback: function () {
+      start();
+    }
+  });
+  t.module('foo', function () {
+    this.test('a', function (callback) {
+      callback();
+      callback();
+    }, function (assert) {
+      if (callCount++) {
+        ok(false);
+      }
+    });
+  });
+  t.run();
+});

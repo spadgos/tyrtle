@@ -794,7 +794,9 @@
        *  @protected
        */
       run : function (callback) {
-        var start, success, handleError, test = this, originalUnexecutedAssertions, oldGlobals;
+        var start, success, handleError, originalUnexecutedAssertions, oldGlobals,
+            callbackExecuted = false, test = this;
+
         success = function () {
           test.runTime = new Date() - start;
           test.status = PASS;
@@ -820,17 +822,19 @@
           oldGlobals = getKeys(root);
           start = new Date();
           if (this.asyncFn) {
-
             // actually executes the asyncTest here.
             this.body(function (variables) {
-              runAssertions(test, {
-                assertions: function () {
-                  test.asyncFn.call(variables || {}, assert);
-                },
-                success: success,
-                failure: handleError,
-                oldGlobals: oldGlobals
-              });
+              if (!callbackExecuted) {
+                callbackExecuted = true;
+                runAssertions(test, {
+                  assertions: function () {
+                    test.asyncFn.call(variables || {}, assert);
+                  },
+                  success: success,
+                  failure: handleError,
+                  oldGlobals: oldGlobals
+                });
+              }
             });
           } else {
             runAssertions(test, {
