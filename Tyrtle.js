@@ -432,6 +432,7 @@
       this.name = name;
       this.tests = [];
       this.helpers = {};
+      this.amdName = null;
       body.call(this);
     };
     addHelper = function (name, fn) {
@@ -552,6 +553,9 @@
             this.extraAssertions[name] = fn;
           }, this);
         }
+      },
+      setAMDName : function (amdName, index) {
+        this.amdName = amdName + (typeof index === 'number' ? ':' + index : '');
       },
       /**
        * @protected

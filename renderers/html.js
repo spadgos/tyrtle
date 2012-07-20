@@ -220,7 +220,10 @@ Tyrtle.setRenderer(new (function () {
           $('<h2></h2>').append(
             $('<a></a>')
               .text(module.name)
-              .attr('href', '?modFilter=' + encodeURIComponent(module.name))
+              .attr('href',
+                module.amdName ? '?amd=' + encodeURIComponent(module.amdName)
+                               : '?modFilter=' + encodeURIComponent(module.name)
+              )
           ),
           $('<div></div>').addClass('modinfo').text("..."),
           module.$ul
@@ -256,9 +259,12 @@ Tyrtle.setRenderer(new (function () {
             }),
           $("<a></a>")
             .html("Reload ")
-            .attr('href', '?modFilter=' + encodeURIComponent(module.name)
-                  + '&testFilter=' + encodeURIComponent(test.name))
-            .attr('title', "Reload just this test"),
+            .attr({
+              title: "Reload just this test",
+              href: (module.amdName ? '?amd=' + encodeURIComponent(module.amdName)
+                                    : '?modFilter=' + encodeURIComponent(module.name))
+                    + '&testFilter=' + encodeURIComponent(test.name)
+            }),
           consoleExists
             ? $("<a></a>")
               .html("&#402;")
