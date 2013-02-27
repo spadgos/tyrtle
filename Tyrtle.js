@@ -471,6 +471,8 @@
       tyrtle : null,          // reference to the owner Tyrtle instance
       helpers : null,         // object containing the (before|after)(All)? functions
       extraAssertions : null, // object holding custom assertions. Only populated if required.
+      skipAll: false,         // whether all tests in this module should be skipped
+      skipMessage: null,      // The skip message for all tests if they should all be skipped.
       passes : 0,             // }
       fails : 0,              // } counts of the test results
       skips : 0,              // }
@@ -557,6 +559,11 @@
       setAMDName : function (amdName, index) {
         this.amdName = amdName + (typeof index === 'number' ? ':' + index : '');
       },
+
+      skipIf: function (condition, message) {
+        this.skipAll = !!condition;
+        this.skipMessage = condition ? message : null;
+      },
       /**
        * @protected
        */
@@ -641,7 +648,13 @@
         var m = this, t = this.tyrtle, go, done;
         Tyrtle.renderer.beforeTest(test, m, t);
         go = function () {
-          test.run(done);
+          if (m.skipAll) {
+            test.status = SKIP;
+            test.statusMessage = "Skipped" + (m.skipMessage ? " because " + m.skipMessage : "");
+            done(test);
+          } else {
+            test.run(done);
+          }
         };
         done = function () {
           runHelper(m.helpers.after, callback, function (e) {
