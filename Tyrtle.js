@@ -740,7 +740,7 @@
   // Test
   //
   (function () {
-    var incorrectNumAssertions, runAssertions;
+    var runAssertions;
 
     Test = function (name, expectedAssertions, body, asyncFn) {
       if (typeof expectedAssertions !== 'number') {
@@ -798,7 +798,7 @@
        *  @protected
        */
       run : function (callback) {
-        var start, success, handleError, originalUnexecutedAssertions, oldGlobals,
+        var start, success, handleError, oldGlobals,
             callbackExecuted = false, test = this;
 
         success = function () {
