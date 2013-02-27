@@ -135,7 +135,15 @@
       }
     }
   };
-  getKeys = Object.keys;
+
+  /**
+   * PhantomJS's Object.keys implementation is buggy. It gives the following results:
+   *    window.hasOwnProperty('setTimeout') === true
+   *    Object.keys(window).indexOf('setTimeout') === -1
+   * So, we're always falling back to the manual method
+   */
+  // getKeys = Object.keys;
+
 //#JSCOVERAGE_IF
   if (!getKeys) {
     getKeys = function (obj) {
@@ -625,21 +633,30 @@
             }
           }
         };
-        applyAssertions(this.extraAssertions);
-        runHelper(this.helpers.beforeAll, runNext, function (e) {
-          // mark all the tests as failed.
+
+        if (this.skipAll) {
           for (j = 0, jl = mod.tests.length; j < jl; ++j) {
-            Tyrtle.renderer.beforeTest(mod.tests[j], mod, mod.tyrtle);
-            mod.tests[j].status = FAIL;
-            mod.tests[j].error = e;
-            Tyrtle.renderer.afterTest(mod.tests[j], mod, mod.tyrtle);
+            mod.tests[j].status = SKIP;
+            mod.tests[j].statusMessage = "Skipped" + (this.skipMessage ? " because " + this.skipMessage : "");
           }
-          // set the group statistics
-          mod.passes = mod.skips = 0;
-          mod.fails = mod.errors = jl;
-          i = l; // <-- so the 'runNext' function thinks it's done all the tests & will call the afterAll.
-          runNext();
-        });
+          callback();
+        } else {
+          applyAssertions(this.extraAssertions);
+          runHelper(this.helpers.beforeAll, runNext, function (e) {
+            // mark all the tests as failed.
+            for (j = 0, jl = mod.tests.length; j < jl; ++j) {
+              Tyrtle.renderer.beforeTest(mod.tests[j], mod, mod.tyrtle);
+              mod.tests[j].status = FAIL;
+              mod.tests[j].error = e;
+              Tyrtle.renderer.afterTest(mod.tests[j], mod, mod.tyrtle);
+            }
+            // set the group statistics
+            mod.passes = mod.skips = 0;
+            mod.fails = mod.errors = jl;
+            i = l; // <-- so the 'runNext' function thinks it's done all the tests & will call the afterAll.
+            runNext();
+          });
+        }
       },
       /**
        * @protected
@@ -648,19 +665,13 @@
         var m = this, t = this.tyrtle, go, done;
         Tyrtle.renderer.beforeTest(test, m, t);
         go = function () {
-          if (m.skipAll) {
-            test.status = SKIP;
-            test.statusMessage = "Skipped" + (m.skipMessage ? " because " + m.skipMessage : "");
-            done(test);
-          } else {
-            test.run(done);
-          }
+          test.run(done);
         };
         done = function () {
           runHelper(m.helpers.after, callback, function (e) {
             test.status = FAIL;
             if (!test.error) {
-              test.statusMessage = "Error in the after helper.";
+              test.statusMessage = "Error in the after helper. " + e.message;
               test.error = e;
             }
             callback();
