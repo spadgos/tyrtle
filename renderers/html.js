@@ -32,7 +32,6 @@ Tyrtle.setRenderer(new (function () {
     var richText,
       argsRegex = /\{args\}/g,
       expandedArgs, i, l,
-      self = this,
       args
     ;
 
@@ -74,7 +73,7 @@ Tyrtle.setRenderer(new (function () {
   HtmlRenderer = function () {};
   HtmlRenderer.prototype.templateString = formatString;
   HtmlRenderer.prototype.formatVariable = function (v) {
-    var vType = typeof v, $out, str, id, ii, len, tmp;
+    var vType = typeof v, $out, str, id, tmp;
 
     $out = $("<span></span>")
       .addClass("variable")
@@ -140,7 +139,7 @@ Tyrtle.setRenderer(new (function () {
 
 
   HtmlRenderer.prototype.beforeRun = function (tyrtle) {
-    var $tags, i, l, $ticker, $link, renderer = this;
+    var i, l, $ticker, $link, renderer = this;
     if (!tyrtle.$container) {
       window.document.title = "Running tests...";
 
@@ -272,7 +271,8 @@ Tyrtle.setRenderer(new (function () {
               .attr('title', "Log this function")
               .click(function (e) {
                 e.preventDefault();
-                window.console.info(test.name + ": %o", test.body);
+                window.console.info(test.name);
+                window.console.dir(test.body); // allows for right-click "Show fn definition" in Chrome
               })
             : null
         )
@@ -284,7 +284,7 @@ Tyrtle.setRenderer(new (function () {
     test.$container.addClass('pending');
   };
 
-  HtmlRenderer.prototype.afterTest = function (test, module, tyrtle) {
+  HtmlRenderer.prototype.afterTest = function (test /*, module, tyrtle*/) {
     var msg;
     msg = formatString(
       test.statusMessage + (test.runTime !== -1 ? formatString(false, ' <span class="tip">{0}ms</span>', test.runTime) : "")
@@ -307,7 +307,7 @@ Tyrtle.setRenderer(new (function () {
     ;
   };
   HtmlRenderer.prototype.afterModule = function (mod, tyrtle) {
-    var i, l, test, speedPercent, completePercent;
+    var completePercent;
 
     if (this.testsLeft) {
       this.testsLeft -= mod.tests.length;
