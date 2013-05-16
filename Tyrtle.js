@@ -1488,5 +1488,4 @@
   } else {
     root.Tyrtle = Tyrtle;
   }
-  extend = null;
 }(this));
