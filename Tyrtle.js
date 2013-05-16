@@ -757,6 +757,16 @@
           ++tyrtle.errors;
           complete();
         });
+      },
+      /**
+       * In order to serialize module we need to remove circular references
+       * the module object
+       */
+      toJSON: function () {
+        var copy = {};
+        extend(copy, this);
+        delete copy.tyrtle;
+        return copy;
       }
     });
   }());
