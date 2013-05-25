@@ -1,5 +1,4 @@
 ({
-  baseUrl: "../target",
   include: ["Tyrtle", "../vendor/almond"],
   out: "../Tyrtle.js",
   optimize: 'none',
