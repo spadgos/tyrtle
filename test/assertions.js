@@ -237,7 +237,6 @@ asyncTest("Tyrtle assertions", function () {
       assert.that(undef).is.nullish()();
       assert.that(obj.foo).is.nullish()();
       assert.that(arr[1]).is.nullish()();
-
       assert.that(0).is.not.nullish()();
       assert.that(false).is.not.nullish()();
       assert.that('').is.not.nullish()();
@@ -708,33 +707,41 @@ asyncTest("Globally added assertions", function () {
   var t = new Tyrtle({
     callback : function () {
       equal(t.passes, 2, "Two tests should have passed");
-      equal(t.fails, 1, "One should have failed");
-      equal(t.errors, 0, "None should have errored");
+      equal(t.fails, 3, "One should have failed");
+      equal(t.errors, 2, "Two should have errored");
       ok(Tyrtle.hasAssertion('isCool'), "Tyrtle should have an assertion called isCool");
       Tyrtle.removeAssertion('isCool');
       ok(!Tyrtle.hasAssertion('isCool'), "The assertion should have been removed.");
+      ok(!Tyrtle.hasAssertion('removeThisAssertion'), "The other assertion should have been removed.");
       start();
-
     }
   });
   Tyrtle.addAssertions({
     isCool : function (subject) {
       return subject === 'jake' || subject === 'elwood' || "{0} is not cool";
-    }
+    },
+    removeThisAssertion: function () {}
   });
+
+  // remove it straight away to check that it has been cleaned up properly
+  Tyrtle.removeAssertion('removeThisAssertion');
+
   t.module("a", function () {
     this.test("jake", function (assert) {
       assert('jake').isCool()();
     });
-  });
-  t.module("b", function () {
     this.test("elwood", function (assert) {
       assert('elwood').isCool()();
+      assert('timothy').not.isCool()();
     });
-  });
-  t.module("c", function () {
     this.test("someone else", function (assert) {
       assert('timothy').isCool()();
+    });
+    this.test('unknown assertion', function (assert) {
+      assert('foo').removeThisAssertion()();
+    });
+    this.test('unknown assertion negated', function (assert) {
+      assert('foo').not.removeThisAssertion()();
     });
   });
   t.run();
@@ -859,21 +866,35 @@ asyncTest("Leaking global objects are reported", function () {
   var t;
   t = new Tyrtle({
     callback: function () {
-      equal(t.fails, 2, "Incorrect number of failures");
+      equal(t.fails, 3, "Incorrect number of failures");
       equal(t.modules[0].tests[0].statusMessage, "Failed: Test introduced new global variable \"__test_global__\"");
       equal(t.modules[0].tests[1].statusMessage, "Failed: Test introduced new global variable \"__test_global2__\"");
+      equal(t.modules[0].tests[2].statusMessage, "Failed: Test introduced new global variable \"__test_global3__\"");
       start();
       delete window.__test_global__;
+      delete window.__test_global2__;
+      delete window.__test_global3__;
     }
   });
   t.module('a', function () {
-    this.test('Test', function (assert) {
+    // global in a synchronous test
+    this.test('Test', function (/*assert*/) {
       window.__test_global__ = true;
     });
+
+    // global in the async part of an async test
     this.test('Test 2', function (done) {
       window.__test_global2__ = true;
       done();
-    }, function (assert) {});
+    }, function (/*assert*/) {});
+
+    // global in the callback of an async test
+    this.test('Test 3', function (done) {
+      done();
+    }, function (/*assert*/) {
+      window.__test_global3__ = true;
+    });
   });
   t.run();
 });
+

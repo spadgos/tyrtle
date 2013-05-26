@@ -665,8 +665,7 @@ AssertionError.prototype.name = "AssertionError";
 
 });
 
-define('Assert',['require','exports','module','AssertionError','util','root'],function (require, exports, module) {
-var Assert,
+define('Assert',['require','exports','module','AssertionError','util','root'],function (require, exports, module) {var Assert,
     AssertionError = require('AssertionError'),
     assertions,
     currentTestAssertions = 0,
@@ -675,19 +674,30 @@ var Assert,
     originalUnexecutedAssertions,
     bodies,
     oldGlobals,
-    temporaryAssertions,
+    temporaryAssertions = {},
+    temporaryAssertionsNegated = {},
+    assertionsNegated = {},
     slice = Array.prototype.slice,
     util = require('util'),
     root = require('root');
 
 module.exports = Assert = {
+  // this is the actual function passed to the tests
   assert: assert,
+
+  /**
+   * Reset counters so that we can test for the expected number of assertions, leaking globals and unexecuted assertions
+   */
   startTest: function () {
     currentTestAssertions = 0;
     originalUnexecutedAssertions = unexecutedAssertions;
     oldGlobals = util.getKeys(root);
   },
 
+  /**
+   * Run post-test assertions: expected # of assertions, unexecuted assertions and leaking globals.
+   * @param  {Test} test
+   */
   endTest: function (test) {
     if (test.expectedAssertions !== -1) {
       assert
@@ -707,6 +717,7 @@ module.exports = Assert = {
       }
     });
   },
+
   /**
    *  Global assertions, added to all modules of all instances of Tyrtle
    *  @param {Object} newAssertions A map of AssertionName => AssertionFunction
@@ -716,15 +727,10 @@ module.exports = Assert = {
       assertions[name] = function () {
         return build.apply(null, [fn, "", this.subject].concat(slice.apply(arguments)));
       };
+      assertionsNegated[name] = function () {
+        return invert(assertions[name].apply(this, arguments));
+      };
     });
-  },
-
-  setTemporaryAssertions: function (newAssertions) {
-    temporaryAssertions = newAssertions;
-  },
-
-  clearTemporaryAssertions: function () {
-    temporaryAssertions = null;
   },
   /**
    * Check whether an assertion exists.
@@ -740,6 +746,29 @@ module.exports = Assert = {
    */
   removeAssertion : function (assertionName) {
     delete assertions[assertionName];
+    delete assertionsNegated[assertionName];
+  },
+
+  setTemporaryAssertions: function (newAssertions) {
+    Assert.clearTemporaryAssertions();
+
+    util.each(newAssertions, function (fn, key) {
+      temporaryAssertions[key] = function () {
+        return build.apply(null, [fn, "", this.subject].concat(slice.apply(arguments)));
+      };
+      temporaryAssertionsNegated[key] = function () {
+        return invert(build.apply(null, [fn, "", this.subject].concat(slice.apply(arguments))));
+      };
+    });
+  },
+
+  clearTemporaryAssertions: function () {
+    var key;
+    for (key in temporaryAssertions) {
+      if (temporaryAssertions.hasOwnProperty(key)) {
+        delete temporaryAssertions[key];
+      }
+    }
   }
 };
 
@@ -1054,7 +1083,6 @@ assertions = {
  *                    properties of this function.
  */
 function assert (actual) {
-  var is;
   /**
    * Assert that the subject is identical (`===`, same value and type) to another value.
    *
@@ -1066,15 +1094,15 @@ function assert (actual) {
    *
    * @param {*} expected
    */
-  is = function (expected) {
-    // `is`
+  function is(expected) {
     return build(
       bodies.is,
       "Actual value {0} did not match expected value {1}",
       is.subject,
       expected
     );
-  };
+  }
+
   /**
    * Assert that two values are not identical. Uses strict equality checking: `!==`.
    *
@@ -1088,35 +1116,28 @@ function assert (actual) {
       unexpected
     );
   };
-  // Copy the regular functions onto the new assertion object, importantly, binding them to the function.
-  // Without this binding, then it would be more difficult to reuse assertions like this:
-  //  var a = assert(x)(3);
-  //  a('foo');
-  //  a('bar');
-  util.each(assertions, function (fn, key) {
-    is[key] = function () {
-      return fn.apply(is, arguments);
-    };
-    is.not[key] = function () {
-      return invert(fn.apply(is, arguments));
-    };
-  });
-  // Copy the module-specific functions onto the assertion object
-  // The syntax for these is simpler than the built-in ones, so we have to do the heavy lifting here
-  util.each(temporaryAssertions, function (fn, key) {
-    is[key] = function () {
-      return build.apply(null, [fn, "", is.subject].concat(slice.apply(arguments)));
-    };
-    is.not[key] = function () {
-      return invert(build.apply(null, [fn, "", is.subject].concat(slice.apply(arguments))));
-    };
-  });
+  is.__proto__ = temporaryAssertions; // is -> temporaryAssertions -> globalAssertions -> Function prototype
+  is.not.__proto__ = temporaryAssertionsNegated;
 
-  is.subject = actual;
+  // Store the subject onto the `is` and `is.not` so `this.subject` works in both cases
+  is.subject = is.not.subject = actual;
   is.is = is; // head hurts.
   return is;
 }
 assert.that = assert;
+
+temporaryAssertions.__proto__ = assertions;
+assertions.__proto__ = Function.prototype;
+
+temporaryAssertionsNegated.__proto__ = assertionsNegated;
+assertionsNegated.__proto__ = Function.prototype;
+
+
+util.each(assertions, function (fn, key) {
+  assertionsNegated[key] = function () {
+    return invert(assertions[key].apply(this, arguments));
+  };
+});
 
 /**
  * Handle the result of running an assertion.
@@ -1782,7 +1803,7 @@ setParams = function (params) {
 }());
 //#JSCOVERAGE_ENDIF
 
-Tyrtle = module.exports = function (options) {
+module.exports = Tyrtle = function (options) {
   options = options || {};
   this.modules = [];
   this.callback = options.callback || util.noop;
