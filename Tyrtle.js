@@ -406,131 +406,84 @@ var requirejs, require, define;
 
 define("../vendor/almond", function(){});
 
-define('Tyrtle',['require','exports','module'],function (require, exports, module) {/*!
- * Tyrtle - A JavaScript Unit Testing Framework
- *
- * Copyright (c) 2011-2012 Nick Fisher
- * Distributed under the terms of the LGPL
- * http://www.gnu.org/licenses/lgpl.html
+define('renderer',['require','exports','module'],function (require, exports, module) {var renderer;
+
+module.exports = {
+  get: function () {
+    return renderer;
+  },
+  set: function (r) {
+    renderer = r;
+  }
+};
+
+});
+
+define('root',['require','exports','module'],function (require, exports, module) {/**
+ * Gets the global object
  */
-/*globals module, window */
-(function () {
-  var Tyrtle, Module, Test, assert,
-    AssertionError, SkipMe,
-    PASS = 0,
-    FAIL = 1,
-    SKIP = 2,
-    extend,
-    defer,
-    noop,
-    each,
-    slice = Array.prototype.slice,
-    isArray,
-    isFunction,
-    isRegExp,
-    getKeys,
-    isEqual,
-    isDate,
-    getParam,
-    setParams,
-    root,
-    runningInNode,
-    unexecutedAssertions = 0, // the count of assertions created minus the number of assertions executed.
-    moduleAssertions = null,  // the extra assertions added by an individual module
-    currentTestAssertions     // a counter for the number of assertions run in an individual test
-  ;
-  // Gets the global object, regardless of whether run as ES3, ES5 or ES5 Strict Mode.
-  root = (function () {
-    return this || (0 || eval)('this');
-  }());
+module.exports = (function () {
+  return this || (0 || eval)('this');
+}());
 
-  runningInNode = typeof window === 'undefined';
+});
 
-  //////////////////////////
-  //  RUNTIME PARAMETERS  //
-  //////////////////////////
-//#JSCOVERAGE_IF 0
-  (function () {
-    var urlParams, loadParams;
-    loadParams = runningInNode
-      ? function () {
-        // node parameters must be set up manually and passed to the Tyrtle constructor
-        // this is because a test harness may use its own command line parameters
-        urlParams = {};
-      }
-      : function () {
-        urlParams = {};
-        var query, vars, i, l, pair;
-        query = window.location.search.substring(1);
-        vars = query.split("&");
-        for (i = 0, l = vars.length; i < l; ++i) {
-          pair = vars[i].split("=");
-          urlParams[decodeURIComponent(pair[0])] = decodeURIComponent(pair[1]);
-        }
-      }
-    ;
+define('util',['require','exports','module','root'],function (require, exports, module) {//#JSCOVERAGE_IF 0
 
-    getParam = function (name) {
-      if (!urlParams) {
-        loadParams();
-        loadParams = null;
-      }
-      return urlParams.hasOwnProperty(name) ? urlParams[name] : null;
-    };
-    setParams = function (params) {
-      urlParams = params || {};
-    };
-  }());
-//#JSCOVERAGE_ENDIF
-  extend = function (target, source) {
+var util,
+    root = require('root'),
+    nativeBind = Function.prototype.bind,
+    slice = Array.prototype.slice;
+
+function Ctor() {}
+
+module.exports = util = {
+  extend: function (target, source) {
     var i;
     for (i in source) {
       if (source.hasOwnProperty(i)) {
         target[i] = source[i];
       }
     }
-  };
-  // defer
-//#JSCOVERAGE_IF
-  if (!root.postMessage) {
-    /**
-     * The regular defer method using a 0ms setTimeout. In reality, this will be executed in 4-10ms.
-     */
-    defer = function (fn) {
-      setTimeout(fn, 0);
-    };
-  } else {
-    /**
-     * The postMessage defer method which will get executed as soon as the call stack has cleared.
-     * Credit to David Baron: http://dbaron.org/log/20100309-faster-timeouts
-     */
-    defer = (function () {
-      var timeouts = [], messageName = "zero-timeout-message", setZeroTimeout, handleMessage;
-
-      setZeroTimeout = function (fn) {
-        timeouts.push(fn);
-        root.postMessage(messageName, "*");
-      };
-
-      handleMessage = function (event) {
-        if (event.source === root && event.data === messageName) {
-          event.stopPropagation();
-          if (timeouts.length > 0) {
-            var fn = timeouts.shift();
-            fn();
-          }
+    return target;
+  },
+  defer: !root.postMessage
+        /**
+         * The regular defer method using a 0ms setTimeout. In reality, this will be executed in 4-10ms.
+         */
+        ? function (fn) {
+          setTimeout(fn, 0);
         }
-      };
+        /**
+         * The postMessage defer method which will get executed as soon as the call stack has cleared.
+         * Credit to David Baron: http://dbaron.org/log/20100309-faster-timeouts
+         */
+        : (function () {
+          var timeouts = [], messageName = "zero-timeout-message", setZeroTimeout, handleMessage;
 
-      root.addEventListener("message", handleMessage, true);
+          setZeroTimeout = function (fn) {
+            timeouts.push(fn);
+            root.postMessage(messageName, "*");
+          };
 
-      return function (func) {
-        setZeroTimeout(func);
-      };
-    }());
-  }
-  noop = function () {};
-  each = function (obj, iterator, context) {
+          handleMessage = function (event) {
+            if (event.source === root && event.data === messageName) {
+              event.stopPropagation();
+              if (timeouts.length > 0) {
+                var fn = timeouts.shift();
+                fn();
+              }
+            }
+          };
+
+          root.addEventListener("message", handleMessage, true);
+
+          return function (func) {
+            setZeroTimeout(func);
+          };
+        }()),
+  noop: function () {},
+  each: function (obj, iterator, context) {
     if (obj !== null && typeof obj !== 'undefined') {
       if (Array.prototype.forEach && obj.forEach === Array.prototype.forEach) {
         obj.forEach(iterator, context);
@@ -542,49 +495,40 @@ define('Tyrtle',['require','exports','module'],function (require, exports, modul
         }
       }
     }
-  };
-
+  },
   /**
    * PhantomJS's Object.keys implementation is buggy. It gives the following results:
    *    window.hasOwnProperty('setTimeout') === true
    *    Object.keys(window).indexOf('setTimeout') === -1
    * So, we're always falling back to the manual method
    */
-  // getKeys = Object.keys;
+  getKeys: function (obj) {
+    /*jslint newcap : false */
+    if (obj !== Object(obj)) {
+      throw new TypeError('Invalid object');
+    }
+    /*jslint newcap : true */
 
-//#JSCOVERAGE_IF
-  if (!getKeys) {
-    getKeys = function (obj) {
-      /*jslint newcap : false */
-      if (obj !== Object(obj)) {
-        throw new TypeError('Invalid object');
+    var keys = [], key;
+    for (key in obj) {
+      if (Object.prototype.hasOwnProperty.call(obj, key)) {
+        keys[keys.length] = key;
       }
-      /*jslint newcap : true */
-
-      var keys = [], key;
-      for (key in obj) {
-        if (Object.prototype.hasOwnProperty.call(obj, key)) {
-          keys[keys.length] = key;
-        }
-      }
-      return keys;
-    };
-  }
-
-  isRegExp = function (obj) {
+    }
+    return keys;
+  },
+  isRegExp: function (obj) {
     return !!(obj && obj.test && obj.exec && (obj.ignoreCase || obj.ignoreCase === false));
-  };
-
-  isFunction = function(obj) {
+  },
+  isFunction: function(obj) {
     return Object.prototype.toString.call(obj) === '[object Function]';
-  };
+  },
   /**
-  * This function is taken from Underscore.js 1.1.6
-  * (c) 2011 Jeremy Ashkenas, DocumentCloud Inc.
-  * http://documentcloud.github.com/underscore
-  */
-//#JSCOVERAGE_IF 0
-  isEqual = function (a, b) {
+   * This function is taken from Underscore.js 1.1.6
+   * (c) 2011 Jeremy Ashkenas, DocumentCloud Inc.
+   * http://documentcloud.github.com/underscore
+   */
+  isEqual: function (a, b) {
     /*jslint eqeqeq: false */
     var aKeys, atype, bKeys, btype, key;
     // Check object identity.
@@ -610,7 +554,7 @@ define('Tyrtle',['require','exports','module'],function (require, exports, modul
       return b.isEqual(a);
     }
     // Check dates' integer values.
-    if (isDate(a) && isDate(b)) {
+    if (util.isDate(a) && util.isDate(b)) {
       return a.getTime() === b.getTime();
     }
     // Both are NaN?
@@ -618,11 +562,11 @@ define('Tyrtle',['require','exports','module'],function (require, exports, modul
       return false;
     }
     // Compare regular expressions.
-    if (isRegExp(a) && isRegExp(b)) {
+    if (util.isRegExp(a) && util.isRegExp(b)) {
       return a.source     === b.source
-        && a.global     === b.global
-        && a.ignoreCase === b.ignoreCase
-        && a.multiline  === b.multiline
+          && a.global     === b.global
+          && a.ignoreCase === b.ignoreCase
+          && a.multiline  === b.multiline
       ;
     }
     // If a is not an object by this point, we can't handle it.
@@ -634,1269 +578,1363 @@ define('Tyrtle',['require','exports','module'],function (require, exports, modul
       return false;
     }
     // Nothing else worked, deep compare the contents.
-    aKeys = getKeys(a);
-    bKeys = getKeys(b);
+    aKeys = util.getKeys(a);
+    bKeys = util.getKeys(b);
     // Different object sizes?
     if (aKeys.length !== bKeys.length) {
       return false;
     }
     // Recursive comparison of contents.
     for (key in a) {
-      if (!(key in b) || !isEqual(a[key], b[key])) {
+      if (!(key in b) || !util.isEqual(a[key], b[key])) {
         return false;
       }
     }
     /*jslint eqeqeq: true */
     return true;
-  };
-  isDate = function (obj) {
+  },
+  isDate: function isDate (obj) {
     return !!(obj && obj.getTimezoneOffset && obj.setUTCFullYear);
-  };
-
-  isArray = Array.isArray || function (obj) {
+  },
+  isArray: Array.isArray || function isArray (obj) {
     return Object.prototype.toString.call(obj) === '[object Array]';
-  };
-//#JSCOVERAGE_ENDIF
-  //
-  // Tyrtle
-  //
-  (function () {
-    var runModule, emptyRenderer;
-
-    Tyrtle = function (options) {
-      options = options || {};
-      this.modules = [];
-      this.callback = options.callback || noop;
-      this.modFilter = options.modFilter === false
-        ? null
-        : (typeof options.modFilter === 'string'
-           ? options.modFilter
-           : getParam('modFilter')
-          )
-      ;
-      this.testFilter = options.testFilter === false
-        ? null
-        : (typeof options.testFilter === 'string'
-           ? options.testFilter
-           : getParam('testFilter')
-         )
-      ;
-    };
-    emptyRenderer = {
-      beforeRun      : noop,
-      beforeModule   : noop,
-      beforeTest     : noop,
-      afterTest      : noop,
-      afterModule    : noop,
-      afterRun       : noop,
-      templateString : function (message) {
-        var args = slice.call(arguments, 1);
-        return message.replace(
-          /\{([1-9][0-9]*|0)\}/g,
-          function (str, p1) {
-            var v = args[p1];
-            return (v === null
-              ? "NULL"
-              : (typeof v === "undefined"
-                 ? "UNDEFINED"
-                 : (v.toString ? v.toString() : String(v))
-              )
-            );
-          }
-        );
-      }
-    };
-
-    // Static methods and properties
-    extend(Tyrtle, {
-      PASS : PASS,
-      FAIL : FAIL,
-      SKIP : SKIP,
-      renderer : emptyRenderer,
-      /**
-       *  Get the current renderer
-       *  @return {Object}
-       */
-      getRenderer : function () {
-        return this.renderer;
-      },
-      /**
-       *  Set the current renderer. This is a static method because the renderer is global to all instances of
-       *  Tyrtle. If one of the renderer properties is not specified, then the corresponding property from
-       *  `emptyRenderer` is used.
-       *  @param {Object} renderer
-       */
-      setRenderer : function (renderer) {
-        each(emptyRenderer, function (val, key) {
-          if (!(key in renderer)) {
-            renderer[key] = val;
-          }
-        }, this);
-        this.renderer = renderer;
-      },
-      /**
-       *  Set the parameters which Tyrtle uses for default values. In the browser, Tyrtle will automatically use
-       *  the parameters specified in the url.
-       */
-      setParams : setParams,
-      /**
-       * Static method used when you do not have an instance of Tyrtle yet. Modules returned by this function must
-       * still be added to an instance of Tyrtle using Tyrtle.module()
-       *
-       * @param  {String} name The name of the module
-       * @param  {Function} body   The body function of the module
-       *
-       * @return {Module}
-       */
-      module : function (name, body) {
-        return new Module(name, body);
-      }
-    });
-
-    // instance methods and properties
-    extend(Tyrtle.prototype, {
-      passes : 0,
-      fails : 0,
-      errors : 0,
-      skips : 0,
-      startTime: 0,
-      runTime: -1,
-      ////
-      /**
-       * Create a new test module and add it to this instance of Tyrtle
-       *
-       * @param  {String} name The name for this module
-       * @param  {Function} body The body of the module which can define tests, local variables and test helpers,
-       *                         like before, after, beforeAll and afterAll
-       */
-      module : function (name, body) {
-        var m;
-        if (arguments.length === 1 && name instanceof Module) {
-          m = name;
-        } else if (arguments.length === 1 && typeof name === 'object') {
-          each(name, function (body, name) {
-            this.module(name, body);
-          }, this);
-          return;
-        } else {
-          m = new Module(name, body);
-        }
-        m.tyrtle = this;
-        this.modules.push(m);
-      },
-      /**
-       * Execute the test suite.
-       */
-      run : function () {
-        var runNext,
-          i = -1,
-          l = this.modules.length,
-          tyrtle = this
-        ;
-        this.startTime = +(new Date());
-        Tyrtle.renderer.beforeRun(this);
-        runNext = function () {
-          var mod;
-          ++i;
-          if (i === l) {
-            tyrtle.runTime = +(new Date()) - tyrtle.startTime;
-            Tyrtle.renderer.afterRun(tyrtle);
-            tyrtle.callback();
-          } else {
-            mod = tyrtle.modules[i];
-            if (tyrtle.modFilter && mod.name !== tyrtle.modFilter) {
-              runNext();
-            } else {
-              runModule(mod, tyrtle, function () {
-                each(['passes', 'fails', 'errors', 'skips'], function (key) {
-                  tyrtle[key] += mod[key];
-                });
-                defer(runNext);
-              });
-            }
-          }
-        };
-        runNext();
-      }
-    });
-
-    runModule = function (mod, tyrtle, callback) {
-      Tyrtle.renderer.beforeModule(mod, tyrtle);
-      mod.run(function () {
-        Tyrtle.renderer.afterModule(mod, tyrtle);
-        callback();
-      });
-    };
-  }());
-  //
-  // Module
-  //
-  (function () {
-    var addHelper, runHelper, applyAssertions, cleanUpAssertions;
-    /**
-     * A testing module. Represents a logical grouping of tests. A Module can have custom **helpers** to assist in
-     * setting up and cleaning up the tests, as well as custom assertions which streamline writing the tests.
-     *
-     * @class
-     * @param {String} name The name of this module
-     * @param {Function} body The body of this function.
-     */
-    Module = function (name, body) {
-      if (!body && isFunction(name)) {
-        throw new Error("Module instantiated without a name.");
-      }
-      this.name = name;
-      this.tests = [];
-      this.helpers = {};
-      this.amdName = null;
-      body.call(this);
-    };
-    addHelper = function (name, fn) {
-      if (!this.helpers[name]) {
-        this.helpers[name] = [];
-      }
-      this.helpers[name].push(fn);
-    };
-    runHelper = function (helpers, callback, catchBlock) {
-      if (helpers && helpers.length) {
-        var helper = helpers[0];
-        try {
-          if (helper.length) {
-            helper(function () {
-              runHelper(helpers.slice(1), callback, catchBlock);
-            });
-          } else {
-            helper();
-            runHelper(helpers.slice(1), callback, catchBlock);
-          }
-        } catch (e) {
-          catchBlock(e);
-        }
-      } else {
-        callback();
-      }
-    };
-    applyAssertions = function (fnMap) {
-      moduleAssertions = fnMap;
-    };
-    cleanUpAssertions = function () {
-      moduleAssertions = null;
-    };
-    extend(Module.prototype, {
-      tests : null,           // array of tests
-      tyrtle : null,          // reference to the owner Tyrtle instance
-      helpers : null,         // object containing the (before|after)(All)? functions
-      extraAssertions : null, // object holding custom assertions. Only populated if required.
-      skipAll: false,         // whether all tests in this module should be skipped
-      skipMessage: null,      // The skip message for all tests if they should all be skipped.
-      passes : 0,             // }
-      fails : 0,              // } counts of the test results
-      skips : 0,              // }
-      errors : 0,             // }
-      //////////////////////////
-      /**
-       * Create a new Test and add it to this Module
-       * @param  {String} name A name for this test.
-       * @param  {Number=} expectedAssertions The number of assertions this test is expected to run. Optional.
-       * @param  {Function} bodyFn The body function for this test.
-       * @param  {Function=} assertionsFn If writing an asynchronous test, this is the function where assertions
-       *                                  can be executed. For synchronous tests, *do not supply this parameter*.
-       * @return {Test} The newly created test.
-       */
-      test : function (name, expectedAssertions, bodyFn, assertionsFn) {
-        var t = new Test(name, expectedAssertions, bodyFn, assertionsFn);
-        this.tests.push(t);
-        return t;
-      },
-      /**
-       * Add a `before` helper which is executed *before each test* is started.
-       * @param  {Function} fn The body of the helper
-       */
-      before : function (fn) {
-        addHelper.call(this, 'before', fn);
-      },
-      /**
-       * Add an `after` helper which is executed *after each test* has finished.
-       * @param  {Function} fn The body of the helper
-       */
-      after : function (fn) {
-        addHelper.call(this, 'after', fn);
-      },
-      /**
-       * Add a `beforeAll` helper which is executed *before any tests* have started.
-       * @param  {Function} fn The body of the helper
-       */
-      beforeAll : function (fn) {
-        addHelper.call(this, 'beforeAll', fn);
-      },
-      /**
-       * Add an `afterAll` helper which is executed *after all tests* have finished.
-       * @param  {Function} fn The body of the helper
-       */
-      afterAll : function (fn) {
-        addHelper.call(this, 'afterAll', fn);
-      },
-      /**
-       * Add per-module (local) assertions to this module. These *may override built-in assertions*. Assertions
-       * defined here are not accessible or visible to any other modules.
-       *
-       * The assertion body should return `true` or `undefined` to indicate a pass. A string will be used as the
-       * default error message, and an array allows the assertion to add additional arguments to be substituted
-       * into the error message.
-       *
-       * @example
-       * this.addAssertions({
-       *    bigNumber : function (subject) {
-       *        // returns true or false. No error message for failing assertions.
-       *        return subject > 9000;
-       *    },
-       *    answer : function (subject) {
-       *        // returns true or a string. `subject` will be substituted for "{0}"
-       *        return subject === 42 || "The supplied value {0} is not the answer to life, & etc.";
-       *    }
-       *    biggerThan : function (subject, expected) {
-       *        // returns true or an array. `expected - subject` is added to the substitution list.
-       *        // assert(5).is.biggerThan(7)(); --> "5 is not bigger than 7. It is off by 2"
-       *        return subject > expected || ["{0} is not bigger than {1}. It is off by {2}", expected - subject];
-       *    }
-       * });
-       *
-       * @param {Object} fnMap A map of {String} AssertionName => {Function} AssertionBody.
-       */
-      addAssertions : function (fnMap) {
-        if (!this.extraAssertions) {
-          this.extraAssertions = fnMap;
-        } else {
-          each(fnMap, function (fn, name) {
-            this.extraAssertions[name] = fn;
-          }, this);
-        }
-      },
-      setAMDName : function (amdName, index) {
-        this.amdName = amdName + (typeof index === 'number' ? ':' + index : '');
-      },
-
-      skipIf: function (condition, message) {
-        this.skipAll = !!condition;
-        this.skipMessage = condition ? message : null;
-      },
-      /**
-       * @protected
-       */
-      run : function (callback) {
-        var runNext,
-          i = -1,
-          l = this.tests.length,
-          j, jl,
-          mod = this
-        ;
-        runNext = function () {
-          var test;
-          if (++i >= l) { // we've done all the tests, break the loop.
-            cleanUpAssertions();
-            runHelper(mod.helpers.afterAll, callback, function (e) {
-              test = mod.tests[mod.tests.length - 1];
-              if (test) {
-                switch (test.status) {
-                case PASS :
-                  --mod.passes;
-                  break;
-                case SKIP :
-                  --mod.skips;
-                  break;
-                case FAIL :
-                  --mod.fails;
-                }
-                ++mod.fails;
-                if (!test.error) {
-                  ++mod.errors;
-                  test.error = e;
-                }
-              }
-              callback();
-            });
-          } else {
-            test = mod.tests[i];
-            if (mod.tyrtle.testFilter && test.name !== mod.tyrtle.testFilter) {
-              runNext();
-            } else {
-              mod.runTest(test, function () {
-                switch (test.status) {
-                case PASS :
-                  ++mod.passes;
-                  break;
-                case FAIL :
-                  ++mod.fails;
-                  if (test.error) {
-                    ++mod.errors;
-                  }
-                  break;
-                case SKIP :
-                  ++mod.skips;
-                  break;
-                }
-                Tyrtle.renderer.afterTest(test, mod, mod.tyrtle);
-                defer(runNext);
-              });
-            }
-          }
-        };
-
-        if (this.skipAll) {
-          for (j = 0, jl = mod.tests.length; j < jl; ++j) {
-            mod.tests[j].status = SKIP;
-            mod.tests[j].statusMessage = "Skipped" + (this.skipMessage ? " because " + this.skipMessage : "");
-          }
-          callback();
-        } else {
-          applyAssertions(this.extraAssertions);
-          runHelper(this.helpers.beforeAll, runNext, function (e) {
-            // mark all the tests as failed.
-            for (j = 0, jl = mod.tests.length; j < jl; ++j) {
-              Tyrtle.renderer.beforeTest(mod.tests[j], mod, mod.tyrtle);
-              mod.tests[j].status = FAIL;
-              mod.tests[j].error = e;
-              Tyrtle.renderer.afterTest(mod.tests[j], mod, mod.tyrtle);
-            }
-            // set the group statistics
-            mod.passes = mod.skips = 0;
-            mod.fails = mod.errors = jl;
-            i = l; // <-- so the 'runNext' function thinks it's done all the tests & will call the afterAll.
-            runNext();
-          });
-        }
-      },
-      /**
-       * @protected
-       */
-      runTest : function (test, callback) {
-        var m = this, t = this.tyrtle, go, done;
-        Tyrtle.renderer.beforeTest(test, m, t);
-        go = function () {
-          test.run(done);
-        };
-        done = function () {
-          runHelper(m.helpers.after, callback, function (e) {
-            test.status = FAIL;
-            if (!test.error) {
-              test.statusMessage = "Error in the after helper. " + e.message;
-              test.error = e;
-            }
-            callback();
-          });
-        };
-        runHelper(this.helpers.before, go, function (e) {
-          test.status = FAIL;
-          test.statusMessage = "Error in the before helper.";
-          test.error = e;
-          done();
-        });
-      },
-      /**
-       * @protected
-       */
-      rerunTest : function (test, tyrtle, callback) {
-        var mod = this, run, complete;
-        switch (test.status) {
-        case PASS :
-          --this.passes;
-          --tyrtle.passes;
-          break;
-        case FAIL :
-          --this.fails;
-          --tyrtle.fails;
-          if (test.error) {
-            delete test.error;
-            --this.errors;
-            --tyrtle.errors;
-          }
-          break;
-        case SKIP :
-          --this.skips;
-          --tyrtle.skips;
-        }
-        run = function () {
-          applyAssertions(mod.extraAssertions);
-          mod.runTest(test, function () {
-            var aftersDone = function () {
-              switch (test.status) {
-              case PASS :
-                ++mod.passes;
-                ++tyrtle.passes;
-                break;
-              case FAIL :
-                ++mod.fails;
-                ++tyrtle.fails;
-                if (test.error) {
-                  ++mod.errors;
-                  ++tyrtle.errors;
-                }
-                break;
-              case SKIP :
-                ++mod.skips;
-                ++tyrtle.skips;
-              }
-              complete();
-            };
-            runHelper(mod.helpers.afterAll, aftersDone, function (e) {
-              test.status = FAIL;
-              test.error = e;
-              test.statusMessage = "Error in the afterAll helper";
-              aftersDone();
-            });
-          });
-        };
-        complete = function () {
-          Tyrtle.renderer.afterTest(test, mod, tyrtle);
-          Tyrtle.renderer.afterModule(mod, tyrtle);
-          Tyrtle.renderer.afterRun(tyrtle);
-          cleanUpAssertions();
-          if (callback) {
-            callback();
-          }
-        };
-        runHelper(this.helpers.beforeAll, run, function (e) {
-          test.status = FAIL;
-          test.error = e;
-          test.statusMessage = "Error in the beforeAll helper";
-          ++mod.fails;
-          ++tyrtle.fails;
-          ++mod.errors;
-          ++tyrtle.errors;
-          complete();
-        });
-      },
-      /**
-       * In order to serialize module we need to remove circular references
-       * the module object
-       */
-      toJSON: function () {
-        var copy = {};
-        extend(copy, this);
-        delete copy.tyrtle;
-        return copy;
-      }
-    });
-  }());
-  //
-  // Test
-  //
-  (function () {
-    var runAssertions;
-
-    Test = function (name, expectedAssertions, body, asyncFn) {
-      if (typeof expectedAssertions !== 'number') {
-        asyncFn = body;
-        body = expectedAssertions;
-      } else {
-        this.expect(expectedAssertions);
-      }
-      if (typeof name !== 'string') {
-        throw new Error('Test instantiated without a name.');
-      }
-      this.name = name;
-      this.body = body;
-      this.asyncFn = asyncFn;
-    };
-
-    extend(Test.prototype, {
-      /** @type {Status} one of PASS, FAIL, SKIP or null */
-      status : null,
-      statusMessage: '',
-      runTime : -1,
-      error : null,       // If an error (not an AssertionError is thrown it is stored here)
-      exception : null,   // Any thrown error is stored here (including AssertionErrors)
-      asyncFn : null,
-      expectedAssertions : -1,
-      assertionCount: 0,
-      ///////////////
-      /**
-       *  Skip this test.
-       *  @param {String=} reason A reason why this test is being skipped.
-       */
-      skip : function (reason) {
-        throw new SkipMe(reason);
-      },
-      /**
-       *  Conditionally skip this test.
-       *  @example
-       *  this.skipIf(typeof window === 'undefined', "Test only applies to browsers")
-       *  @param {Boolean} condition
-       *  @param {String=} reason A reason why this test is being skipped.
-       */
-      skipIf : function (condition, reason) {
-        if (condition) {
-          this.skip(reason);
-        }
-      },
-      /**
-       *  Expect an exact number of assertions that should be run by this test.
-       *  @param {Number} numAssertions
-       */
-      expect : function (numAssertions) {
-        this.expectedAssertions = numAssertions;
-      },
-      /**
-       *  @protected
-       */
-      run : function (callback) {
-        var start, success, handleError, oldGlobals,
-            callbackExecuted = false, test = this;
-
-        success = function () {
-          test.runTime = new Date() - start;
-          test.status = PASS;
-          test.statusMessage = 'Passed';
-          callback(test);
-        };
-        handleError = function (e) {
-          var message = (e && e.message) || String(e);
-          if (e instanceof SkipMe) {
-            test.status = SKIP;
-            test.statusMessage = "Skipped" + (e.message ? " because " + e.message : "");
-          } else {
-            test.status = FAIL;
-            test.statusMessage = "Failed" + (message ? ": " + message : "");
-            test.exception = e;
-            if (!(e instanceof AssertionError)) {
-              test.error = e;
-            }
-          }
-          callback(test);
-        };
-        try {
-          oldGlobals = getKeys(root);
-          start = new Date();
-          if (this.asyncFn) {
-            // actually executes the asyncTest here.
-            this.body(function (variables) {
-              if (!callbackExecuted) {
-                callbackExecuted = true;
-                runAssertions(test, {
-                  assertions: function () {
-                    test.asyncFn.call(variables || {}, assert);
-                  },
-                  success: success,
-                  failure: handleError,
-                  oldGlobals: oldGlobals
-                });
-              }
-            });
-          } else {
-            runAssertions(test, {
-              assertions: function () {
-                test.body(assert);
-              },
-              success: success,
-              failure: handleError,
-              oldGlobals: oldGlobals
-            });
-          }
-        } catch (e) {
-          handleError(e);
-        }
-      }
-    });
-
-    runAssertions = function (test, options) {
-      var assertionsFn = options.assertions,
-          successFn = options.success,
-          oldGlobals = options.oldGlobals,
-          onError = options.failure,
-          originalUnexecutedAssertions;
-
-      try {
-        // this is incremented by the `since` function
-        currentTestAssertions = 0;
-
-        // remember how many unexecuted assertion there were at the start
-        originalUnexecutedAssertions = unexecutedAssertions;
-        assertionsFn();
-
-        if (test.expectedAssertions !== -1) {
-          assert
-            .that(currentTestAssertions)
-            .is(test.expectedAssertions)
-            .since("Incorrect number of assertions made by this test.");
-        }
-        test.assertionCount = currentTestAssertions;
-        // check that no assertions were left unexecuted.
-        assert
-          .that(unexecutedAssertions - originalUnexecutedAssertions)
-          .is(0)
-          .since("This test defines assertions which are never executed");
-
-
-        each(getKeys(root), function (newGlobal) {
-          if (oldGlobals.indexOf(newGlobal) < 0) {
-            throw new AssertionError('Test introduced new global variable "{0}"', [newGlobal]);
-          }
-        });
-
-        successFn();
-      } catch (ee) {
-        onError(ee);
-      }
-    };
-
-  }());
-
-  /**
-   * AssertionError exception class. An instance of this class is thrown whenever an assertion fails.
-   * @class
-   * @param {String} msg A message for the failed assertion, this is defined by the assertion itself.
-   * @param {Array} args Arguments passed to the assertion, these are used to substitute into the error message.
-   * @param {String} userMessage An error message as defined by the user.
-   */
-  AssertionError = function (msg, args, userMessage) {
-    var newError = new Error(),
-      re_stack = /([^(\s]+\.js):(\d+):(\d+)/g
-    ;
-    this.message = Tyrtle.renderer.templateString.apply(
-      Tyrtle.renderer,
-      [(msg || "") + (msg && userMessage ? ": " : "") + (userMessage || "")].concat(args)
-    );
-    if (newError.stack) { // TODO: cross-browser implementation
-      this.stack = [];
-      each(newError.stack.match(re_stack), function (str) {
-        re_stack.lastIndex = 0;
-        var parts = re_stack.exec(str);
-        if (parts) {
-          this.stack.push(parts.slice(1));
-        }
-      }, this);
-
-      this.stack = this.stack.slice(3);
+  },
+  // This method stolen from Underscore
+  bind: function bind(func, context) {
+    var bound, args;
+    if (func.bind === nativeBind && nativeBind) {
+      return nativeBind.apply(func, slice.call(arguments, 1));
     }
-  };
-  AssertionError.prototype.name = "AssertionError";
+    if (!util.isFunction(func)) {
+      throw new TypeError;
+    }
+    args = slice.call(arguments, 2);
+    bound = function() {
+      if (!(this instanceof bound)) {
+        return func.apply(context, args.concat(slice.call(arguments)));
+      }
+      Ctor.prototype = func.prototype;
+      var self = new Ctor;
+      var result = func.apply(self, args.concat(slice.call(arguments)));
+      if (Object(result) === result) {
+        return result;
+      }
+      return self;
+    };
+    return bound;
+  }
+};
 
-  /**
-   * SkipMe exception. This is thrown by tests when `this.skip()` or `this.skipIf(true)` is called.
-   * @class
-   * @param  {String} reason A reason for this test to be skipped.
-   */
-  SkipMe = function (reason) {
-    this.message = reason;
-  };
-  SkipMe.prototype.name = 'SkipMe';
-
-  //////////////////
-  //  Assertions  //
-  //////////////////
-  (function () {
-    var assertions,
-        build,
-        invert,
-        handleAssertionResult,
-        internalAssertionCount = 0,
-        bodies;
-    bodies = {
-      ok: function (a) {
-        return !!a;
-      },
-      ofType: function (a, e) {
-        var type = typeof a;
-//#JSCOVERAGE_IF typeof /a/ === 'function'
-        // webkit (incorrectly?) reports regexes as functions. Normalize this to 'object'.
-        if (type === 'function' && a.constructor === RegExp) {
-          type = 'object';
-        }
 //#JSCOVERAGE_ENDIF
-        switch (e.toLowerCase()) {
-        case 'array' :
-          return isArray(a);
-        case 'date' :
-          return isDate(a);
-        case 'regexp' :
-          return isRegExp(a);
-        default :
-          return type === e;
-        }
-      },
-      matches: function (a, m) {
-        return m.test(a);
-      },
-      startsWith: function (a, n) {
-        if (typeof a !== 'string') {
-          return [
-            "Actual value {0} is of type {2}, therefore it can not start with {1} as expected",
-            typeof a
-          ];
-        }
-        return a.length >= n.length && n === a.substr(0, n.length);
-      },
-      endsWith: function (a, n) {
-        if (typeof a !== 'string') {
-          return [
-            "Actual value {0} is of type {2}, therefore it can not end with {1} as expected",
-            typeof a
-          ];
-        }
-        return a.length >= n.length && n === a.substr(-n.length);
-      },
-      contains: function (a, n) {
-        return a.indexOf(n) !== -1 || (typeof a === 'string' ? "%1 substring {1}" : "%1 element {1}");
-      },
-      willThrow: function (f, expectedError) {
-        try {
-          f();
-          return "The function unexpectedly threw no errors";
-        } catch (e) {
-          if (expectedError) {
-            var noMatch = [
+
+});
+
+define('AssertionError',['require','exports','module','renderer','util'],function (require, exports, module) {/**
+ * AssertionError exception class. An instance of this class is thrown whenever an assertion fails.
+ * @class
+ * @param {String} msg A message for the failed assertion, this is defined by the assertion itself.
+ * @param {Array} args Arguments passed to the assertion, these are used to substitute into the error message.
+ * @param {String} userMessage An error message as defined by the user.
+ */
+var AssertionError,
+    renderer = require('renderer'),
+    util = require('util');
+
+module.exports = AssertionError = function (msg, args, userMessage) {
+  var newError = new Error(),
+      re_stack = /([^(\s]+\.js):(\d+):(\d+)/g
+  ;
+  this.message = renderer.get().templateString.apply(
+    renderer.get(),
+    [(msg || "") + (msg && userMessage ? ": " : "") + (userMessage || "")].concat(args)
+  );
+  if (newError.stack) { // TODO: cross-browser implementation
+    this.stack = [];
+    util.each(newError.stack.match(re_stack), function (str) {
+      re_stack.lastIndex = 0;
+      var parts = re_stack.exec(str);
+      if (parts) {
+        this.stack.push(parts.slice(1));
+      }
+    }, this);
+
+    this.stack = this.stack.slice(3);
+  }
+};
+AssertionError.prototype.name = "AssertionError";
+
+});
+
+define('Assert',['require','exports','module','AssertionError','util','root'],function (require, exports, module) {
+var Assert,
+    AssertionError = require('AssertionError'),
+    assertions,
+    currentTestAssertions = 0,
+    internalAssertionCount = 0,
+    unexecutedAssertions = 0,
+    originalUnexecutedAssertions,
+    bodies,
+    oldGlobals,
+    slice = Array.prototype.slice,
+    util = require('util'),
+    root = require('root');
+
+Assert = module.exports = {
+  assert: assert,
+  startTest: function () {
+    currentTestAssertions = 0;
+    originalUnexecutedAssertions = unexecutedAssertions;
+    oldGlobals = util.getKeys(root);
+  },
+
+  endTest: function (test) {
+    if (test.expectedAssertions !== -1) {
+      assert
+        .that(currentTestAssertions)
+        .is(test.expectedAssertions)
+        .since('This test should have executed the expected number of assertions');
+    }
+    test.assertionCount = currentTestAssertions;
+
+    if (unexecutedAssertions !== originalUnexecutedAssertions) {
+      throw new AssertionError('This test defines assertions which are never executed');
+    }
+
+    util.each(util.getKeys(root), function (newGlobal) {
+      if (oldGlobals.indexOf(newGlobal) < 0) {
+        throw new AssertionError('Test introduced new global variable "{0}"', [newGlobal]);
+      }
+    });
+  },
+  /**
+   *  Global assertions, added to all modules of all instances of Tyrtle
+   *  @param {Object} newAssertions A map of AssertionName => AssertionFunction
+   */
+  addAssertions : function (newAssertions) {
+    util.each(newAssertions, function (fn, name) {
+      assertions[name] = function () {
+        return build.apply(null, [fn, "", this.subject].concat(slice.apply(arguments)));
+      };
+    });
+  },
+  /**
+   * Check whether an assertion exists.
+   * @param  {String} assertionName The name of an assertion to check
+   * @return {Boolean}
+   */
+  hasAssertion : function (assertionName) {
+    return assertions.hasOwnProperty(assertionName);
+  },
+  /**
+   * Remove an assertion.
+   * @param  {String} assertionName The name of an assertions to remove
+   */
+  removeAssertion : function (assertionName) {
+    delete assertions[assertionName];
+  }
+};
+
+
+bodies = {
+  ok: function (a) {
+    return !!a;
+  },
+  ofType: function (a, e) {
+    var type = typeof a;
+//#JSCOVERAGE_IF typeof /a/ === 'function'
+    // webkit (incorrectly?) reports regexes as functions. Normalize this to 'object'.
+    if (type === 'function' && a.constructor === RegExp) {
+      type = 'object';
+    }
+//#JSCOVERAGE_ENDIF
+    switch (e.toLowerCase()) {
+    case 'array' :
+      return util.isArray(a);
+    case 'date' :
+      return util.isDate(a);
+    case 'regexp' :
+      return util.isRegExp(a);
+    default :
+      return type === e;
+    }
+  },
+  matches: function (a, m) {
+    return m.test(a);
+  },
+  startsWith: function (a, n) {
+    if (typeof a !== 'string') {
+      return [
+        "Actual value {0} is of type {2}, therefore it can not start with {1} as expected",
+        typeof a
+      ];
+    }
+    return a.length >= n.length && n === a.substr(0, n.length);
+  },
+  endsWith: function (a, n) {
+    if (typeof a !== 'string') {
+      return [
+        "Actual value {0} is of type {2}, therefore it can not end with {1} as expected",
+        typeof a
+      ];
+    }
+    return a.length >= n.length && n === a.substr(-n.length);
+  },
+  contains: function (a, n) {
+    return a.indexOf(n) !== -1 || (typeof a === 'string' ? "%1 substring {1}" : "%1 element {1}");
+  },
+  willThrow: function (f, expectedError) {
+    try {
+      f();
+      return "The function unexpectedly threw no errors";
+    } catch (e) {
+      if (expectedError) {
+        var noMatch = [
+          "An error {2} was thrown, but it did not match the expected error {1}",
+          e.message || e
+        ];
+        if (typeof expectedError === 'string') {
+          if (expectedError !== (e.message || e)) {
+            return noMatch;
+          }
+        } else if (util.isRegExp(expectedError)) {
+          if (!expectedError.test(e.message || e)) {
+            return [
               "An error {2} was thrown, but it did not match the expected error {1}",
               e.message || e
             ];
-            if (typeof expectedError === 'string') {
-              if (expectedError !== (e.message || e)) {
-                return noMatch;
-              }
-            } else if (isRegExp(expectedError)) {
-              if (!expectedError.test(e.message || e)) {
-                return [
-                  "An error {2} was thrown, but it did not match the expected error {1}",
-                  e.message || e
-                ];
-              }
-            } else if (typeof expectedError === 'function' && !(e instanceof expectedError)) {
-              return [
-                "An error {2} was thrown, but it was not an instance of {1} as expected",
-                e
-              ];
-            }
-            return true;
-          } else {
-            return true;
           }
+        } else if (typeof expectedError === 'function' && !(e instanceof expectedError)) {
+          return [
+            "An error {2} was thrown, but it was not an instance of {1} as expected",
+            e
+          ];
         }
-      },
-      wontThrow: function (f) {
-        try {
-          f();
-          return true;
-        } catch (e) {
-          return ["%1 {1}", e];
-        }
-      },
-      called: function (subject, numTimes) {
-        var cc;
-        if (subject && typeof subject.callCount === 'function') {
-          cc = subject.callCount();
-          if (numTimes != null) {
-            return cc === numTimes || ["%1", cc];
-          } else {
-            return cc > 0 || "Function was not called";
-          }
-        } else {
-          return "Object is not a Myrtle handle";
-        }
-      },
-      is: function (a, e) {
-        if (a !== a) { // NaN
-          return e !== e;
-        } else {
-          return a === e;
-        }
-      },
-      not: function (a, un) {
-        if (a !== a && un !== un) {
-          return false;
-        } else {
-          return a !== un;
-        }
-      },
-      nullish: function (a) {
-        return a == null;
+        return true;
+      } else {
+        return true;
       }
-    };
-    assertions = {
-      /**
-       * Assert that a value is truthy, (`subject == true`)
-       */
-      ok: function () {
-        return build(
-          bodies.ok,
-          "Actual value {0} was not truthy as expected",
-          this.subject
-        );
-      },
-
-      nullish: function () {
-        return build(
-          bodies.nullish,
-          "Actual value {0} was not null or undefined as expected",
-          this.subject
-        );
-      },
-      /**
-       * Assert the type of a variable.
-       *
-       * Allows some types additional to the built-in native types to simplify tests:
-       *
-       * - 'array'
-       * - 'date'
-       * - 'regexp'
-       *
-       *      assert.that(/foo/).is.ofType('regexp')();
-       *
-       * It is important to note however that asserting type 'object' will pass for all of these types
-       *
-       *     assert.that([]).is.ofType('object')();  // } these both
-       *     assert.that([]).is.ofType('array')();   // } work
-       *
-       * @param  {String} expectedType
-       */
-      ofType : function (expectedType) {
-        return build(
-          bodies.ofType,
-          "Type of value {0} was not {1} as expected",
-          this.subject,
-          expectedType
-        );
-      },
-      /**
-       * Assert that a String matches a given regex
-       *
-       * @param  {RegExp} match The regular expression to match against
-       */
-      matches : function (match) {
-        return build(
-          bodies.matches,
-          "{0} does not match the expected {1}",
-          this.subject,
-          match
-        );
-      },
-      /**
-       * Assert that the subject string starts with the given substring.
-       *
-       * @param  {String} needle The value which should be at the start of subject.
-       */
-      startsWith : function (needle) {
-        return build(
-          bodies.startsWith,
-          "Actual value {0} does not begin with {1} as expected",
-          this.subject,
-          needle
-        );
-      },
-      /**
-       * Assert that the subject string ends with the given substring.
-       *
-       * @param  {String} needle
-       */
-      endsWith : function (needle) {
-        return build(
-          bodies.endsWith,
-          "Actual value {0} does not end with {1} as expected",
-          this.subject,
-          needle
-        );
-      },
-      /**
-       * Assert that a String or Array contains a substring or element. The test is performed using the `.indexOf`
-       * method of the subject, so it can actually apply to any object which implements this method.
-       *
-       * @param  {*} needle
-       */
-      contains : function (needle) {
-        return build(
-          bodies.contains,
-          "Actual value {0} does not contain the expected",
-          this.subject,
-          needle
-        );
-      },
-      /**
-       * Assert that a function will throw an error when executed. Additionally, a specific type of error or error
-       * message can be expected. If this is specified and an error is thrown which does not match the
-       * expectation, the assertion will fail.
-       *
-       * Though the expected error type/message is optional, it is highly recommended to use it, otherwise if your
-       * function is failing in a way which you did not expect, that error will be swallowed and your tests will
-       * still pass.
-       *
-       * The `expectedError` argument can be a string or a regex (in which case these are compared against the
-       * error's `.message` property), or a constructor (in which case, the thrown error should be an instance of
-       * this function).
-       *
-       *      assert.that(function () {
-       *          (0)();
-       *      }).willThrow(TypeError);
-       *
-       * @param  {String|RegExp|Function} expectedError
-       */
-      willThrow : function (expectedError) {
-        return build(
-          bodies.willThrow,
-          "",
-          this.subject, // a function
-          expectedError
-        );
-      },
-      /**
-       * Assert that a function will not throw any errors when executed.
-       *
-       * The given function will be executed with no arguments or context. If you require arguments, then a
-       * closure should be used. This assertion only be applied to subjects of type `function`.
-       */
-      wontThrow : function () {
-        return build(
-          bodies.wontThrow,
-          "Function unexpectedly raised an error",
-          this.subject
-        );
-      },
-      /**
-       * Assert that two objects have the same values (deep equality).
-       *
-       * This assertion should be used when you want to compare two objects to see that they contain the same
-       * values. If you are asserting with primitives such as strings or numbers, then it is faster to use `.is`
-       *
-       *     assert({a : 'bar', b : 'baz'}).equals({b : 'baz', a : 'bar'})(); // PASS, same keys and values.
-       *
-       * @param  {Object} object
-       */
-      equals : function (object) {
-        return build(
-          isEqual,
-          "Actual value {0} did not match expected value {1} with object comparison.",
-          this.subject,
-          object
-        );
-      },
-      /**
-       * Assert that a function which has been spied upon by Myrtle has been called a exactly this many times.
-       * If no value is passed to this assertion, then it will assert that the function has been called *at least
-       * once*.
-       *
-       * @example
-       *  Myrtle.spy(obj, 'myFunc').and(function () {
-       *      // `this` is the Myrtle handle
-       *      doSomething();
-       *      assert.that(this).is.called(3).since("obj.myFunc should have been called 3 times");
-       *  });
-       *
-       * @example
-       *  assert.that(handle).is.called()("The function should have been called at least once");
-       *
-       * @param {Number=} numTimes The number of times which the function should have been called.
-       */
-      called : function (numTimes) {
-        return build(
-          bodies.called,
-          "Function call count is {2} when a value of {1} was expected",
-          this.subject,
-          numTimes
-        );
+    }
+  },
+  wontThrow: function (f) {
+    try {
+      f();
+      return true;
+    } catch (e) {
+      return ["%1 {1}", e];
+    }
+  },
+  called: function (subject, numTimes) {
+    var cc;
+    if (subject && typeof subject.callCount === 'function') {
+      cc = subject.callCount();
+      if (numTimes != null) {
+        return cc === numTimes || ["%1", cc];
+      } else {
+        return cc > 0 || "Function was not called";
       }
+    } else {
+      return "Object is not a Myrtle handle";
+    }
+  },
+  is: function (a, e) {
+    if (a !== a) { // NaN
+      return e !== e;
+    } else {
+      return a === e;
+    }
+  },
+  not: function (a, un) {
+    if (a !== a && un !== un) {
+      return false;
+    } else {
+      return a !== un;
+    }
+  },
+  nullish: function (a) {
+    return a == null;
+  }
+};
+assertions = {
+  /**
+   * Assert that a value is truthy, (`subject == true`)
+   */
+  ok: function () {
+    return build(
+      bodies.ok,
+      "Actual value {0} was not truthy as expected",
+      this.subject
+    );
+  },
+
+  nullish: function () {
+    return build(
+      bodies.nullish,
+      "Actual value {0} was not null or undefined as expected",
+      this.subject
+    );
+  },
+  /**
+   * Assert the type of a variable.
+   *
+   * Allows some types additional to the built-in native types to simplify tests:
+   *
+   * - 'array'
+   * - 'date'
+   * - 'regexp'
+   *
+   *      assert.that(/foo/).is.ofType('regexp')();
+   *
+   * It is important to note however that asserting type 'object' will pass for all of these types
+   *
+   *     assert.that([]).is.ofType('object')();  // } these both
+   *     assert.that([]).is.ofType('array')();   // } work
+   *
+   * @param  {String} expectedType
+   */
+  ofType : function (expectedType) {
+    return build(
+      bodies.ofType,
+      "Type of value {0} was not {1} as expected",
+      this.subject,
+      expectedType
+    );
+  },
+  /**
+   * Assert that a String matches a given regex
+   *
+   * @param  {RegExp} match The regular expression to match against
+   */
+  matches : function (match) {
+    return build(
+      bodies.matches,
+      "{0} does not match the expected {1}",
+      this.subject,
+      match
+    );
+  },
+  /**
+   * Assert that the subject string starts with the given substring.
+   *
+   * @param  {String} needle The value which should be at the start of subject.
+   */
+  startsWith : function (needle) {
+    return build(
+      bodies.startsWith,
+      "Actual value {0} does not begin with {1} as expected",
+      this.subject,
+      needle
+    );
+  },
+  /**
+   * Assert that the subject string ends with the given substring.
+   *
+   * @param  {String} needle
+   */
+  endsWith : function (needle) {
+    return build(
+      bodies.endsWith,
+      "Actual value {0} does not end with {1} as expected",
+      this.subject,
+      needle
+    );
+  },
+  /**
+   * Assert that a String or Array contains a substring or element. The test is performed using the `.indexOf`
+   * method of the subject, so it can actually apply to any object which implements this method.
+   *
+   * @param  {*} needle
+   */
+  contains : function (needle) {
+    return build(
+      bodies.contains,
+      "Actual value {0} does not contain the expected",
+      this.subject,
+      needle
+    );
+  },
+  /**
+   * Assert that a function will throw an error when executed. Additionally, a specific type of error or error
+   * message can be expected. If this is specified and an error is thrown which does not match the
+   * expectation, the assertion will fail.
+   *
+   * Though the expected error type/message is optional, it is highly recommended to use it, otherwise if your
+   * function is failing in a way which you did not expect, that error will be swallowed and your tests will
+   * still pass.
+   *
+   * The `expectedError` argument can be a string or a regex (in which case these are compared against the
+   * error's `.message` property), or a constructor (in which case, the thrown error should be an instance of
+   * this function).
+   *
+   *      assert.that(function () {
+   *          (0)();
+   *      }).willThrow(TypeError);
+   *
+   * @param  {String|RegExp|Function} expectedError
+   */
+  willThrow : function (expectedError) {
+    return build(
+      bodies.willThrow,
+      "",
+      this.subject, // a function
+      expectedError
+    );
+  },
+  /**
+   * Assert that a function will not throw any errors when executed.
+   *
+   * The given function will be executed with no arguments or context. If you require arguments, then a
+   * closure should be used. This assertion only be applied to subjects of type `function`.
+   */
+  wontThrow : function () {
+    return build(
+      bodies.wontThrow,
+      "Function unexpectedly raised an error",
+      this.subject
+    );
+  },
+  /**
+   * Assert that two objects have the same values (deep equality).
+   *
+   * This assertion should be used when you want to compare two objects to see that they contain the same
+   * values. If you are asserting with primitives such as strings or numbers, then it is faster to use `.is`
+   *
+   *     assert({a : 'bar', b : 'baz'}).equals({b : 'baz', a : 'bar'})(); // PASS, same keys and values.
+   *
+   * @param  {Object} object
+   */
+  equals : function (object) {
+    return build(
+      util.isEqual,
+      "Actual value {0} did not match expected value {1} with object comparison.",
+      this.subject,
+      object
+    );
+  },
+  /**
+   * Assert that a function which has been spied upon by Myrtle has been called a exactly this many times.
+   * If no value is passed to this assertion, then it will assert that the function has been called *at least
+   * once*.
+   *
+   * @example
+   *  Myrtle.spy(obj, 'myFunc').and(function () {
+   *      // `this` is the Myrtle handle
+   *      doSomething();
+   *      assert.that(this).is.called(3).since("obj.myFunc should have been called 3 times");
+   *  });
+   *
+   * @example
+   *  assert.that(handle).is.called()("The function should have been called at least once");
+   *
+   * @param {Number=} numTimes The number of times which the function should have been called.
+   */
+  called : function (numTimes) {
+    return build(
+      bodies.called,
+      "Function call count is {2} when a value of {1} was expected",
+      this.subject,
+      numTimes
+    );
+  }
+};
+/**
+ * The assertion starting point. This is the actual function passed in to each test. The value passed as an
+ * argument to this function is used as the *subject* of the assertion.
+ *
+ * @param  {*} actual A value which is the subject of this assertion
+ * @return {Function} A function which initiates an `is` assertion. Other types of assertion are stored as
+ *                    properties of this function.
+ */
+function assert (actual) {
+  var is;
+  /**
+   * Assert that the subject is identical (`===`, same value and type) to another value.
+   *
+   * For comparing the members of objects (including Arrays, Dates, etc), the `equals` assertion usually more
+   * appropriate. For example,
+   *
+   *     assert.that([1, 2, 3]).is([1, 2, 3])(); // FAIL, they are not the same object
+   *     assert.that([1, 2, 3]).equals([1, 2, 3])(); // PASS, each of their members have the same value.
+   *
+   * @param {*} expected
+   */
+  is = function (expected) {
+    // `is`
+    return build(
+      bodies.is,
+      "Actual value {0} did not match expected value {1}",
+      is.subject,
+      expected
+    );
+  };
+  /**
+   * Assert that two values are not identical. Uses strict equality checking: `!==`.
+   *
+   * @param {*} unexpected The value which should be different
+   */
+  is.not = function (unexpected) {
+    return build(
+      bodies.not,
+      "Actual value was the same as the unexpected value {0}",
+      this.subject,
+      unexpected
+    );
+  };
+  // Copy the regular functions onto the new assertion object, importantly, binding them to the function.
+  // Without this binding, then it would be more difficult to reuse assertions like this:
+  //  var a = assert(x)(3);
+  //  a('foo');
+  //  a('bar');
+  util.each(assertions, function (fn, key) {
+    is[key] = function () {
+      return fn.apply(is, arguments);
     };
-    /**
-     * The assertion starting point. This is the actual function passed in to each test. The value passed as an
-     * argument to this function is used as the *subject* of the assertion.
-     *
-     * @param  {*} actual A value which is the subject of this assertion
-     * @return {Function} A function which initiates an `is` assertion. Other types of assertion are stored as
-     *                    properties of this function.
-     */
-    assert = function (actual) {
-      var is;
-      /**
-       * Assert that the subject is identical (`===`, same value and type) to another value.
-       *
-       * For comparing the members of objects (including Arrays, Dates, etc), the `equals` assertion usually more
-       * appropriate. For example,
-       *
-       *     assert.that([1, 2, 3]).is([1, 2, 3])(); // FAIL, they are not the same object
-       *     assert.that([1, 2, 3]).equals([1, 2, 3])(); // PASS, each of their members have the same value.
-       *
-       * @param {*} expected
-       */
-      is = function (expected) {
-        // `is`
-        return build(
-          bodies.is,
-          "Actual value {0} did not match expected value {1}",
-          is.subject,
-          expected
-        );
-      };
-      /**
-       * Assert that two values are not identical. Uses strict equality checking: `!==`.
-       *
-       * @param {*} unexpected The value which should be different
-       */
-      is.not = function (unexpected) {
-        return build(
-          bodies.not,
-          "Actual value was the same as the unexpected value {0}",
-          this.subject,
-          unexpected
-        );
-      };
-      // Copy the regular functions onto the new assertion object, importantly, binding them to the function.
-      // Without this binding, then it would be more difficult to reuse assertions like this:
-      //  var a = assert(x)(3);
-      //  a('foo');
-      //  a('bar');
-      each(assertions, function (fn, key) {
-        is[key] = function () {
-          return fn.apply(is, arguments);
-        };
-        is.not[key] = function () {
-          return invert(fn.apply(is, arguments));
-        };
-      });
-      // Copy the module-specific functions onto the assertion object
-      // The syntax for these is simpler than the built-in ones, so we have to do the heavy lifting here
-      each(moduleAssertions, function (fn, key) {
-        is[key] = function () {
-          return build.apply(null, [fn, "", is.subject].concat(slice.apply(arguments)));
-        };
-        is.not[key] = function () {
-          return invert(build.apply(null, [fn, "", is.subject].concat(slice.apply(arguments))));
-        };
-      });
-
-      is.subject = actual;
-      is.is = is; // head hurts.
-      return is;
+    is.not[key] = function () {
+      return invert(fn.apply(is, arguments));
     };
-    assert.that = assert;
+  });
+  // Copy the module-specific functions onto the assertion object
+  // The syntax for these is simpler than the built-in ones, so we have to do the heavy lifting here
+  // util.each(moduleAssertions, function (fn, key) {
+  //   is[key] = function () {
+  //     return build.apply(null, [fn, "", is.subject].concat(slice.apply(arguments)));
+  //   };
+  //   is.not[key] = function () {
+  //     return invert(build.apply(null, [fn, "", is.subject].concat(slice.apply(arguments))));
+  //   };
+  // });
 
-    /**
-     * Handle the result of running an assertion.
-     * @param  {Boolean|String|Array} result The result of the assertion. True or undefined for "pass", any other
-     *                                       value for failure. A string is used as the error message, and an array
-     *                                       should contain an error message in the first position, followed by
-     *                                       additional arguments to be substituted into the message.
-     * @param  {Array} args The arguments passed to the assertion function
-     * @param  {String} message The default assertion error message
-     * @param  {String} userMessage The user-supplied error message
-     * @throws {AssertionError} If the assertion failed.
-     */
-    handleAssertionResult = function (result, args, message, userMessage) {
-      var isArr;
-      // success can be signalled by returning true, or returning nothing.
-      if (result !== true && typeof result !== 'undefined') {
-        isArr = isArray(result);
+  is.subject = actual;
+  is.is = is; // head hurts.
+  return is;
+}
+assert.that = assert;
 
-        // if we have an array
-        if (isArr) {
-          // grab all but the first element and add that to the arguments
-          args = args.concat(result.slice(1));
-          // grab the first element and make that the error message
-          result = result[0];
-        }
-        // if the result is a string, use that instead of the default
-        if (typeof result === 'string') {
-          // the default message can be inserted by using '%1' in the error
-          message = result.replace(/%1/, message || '');
-        }
-        throw new AssertionError(message, args, userMessage);
+/**
+ * Handle the result of running an assertion.
+ * @param  {Boolean|String|Array} result The result of the assertion. True or undefined for "pass", any other
+ *                                       value for failure. A string is used as the error message, and an array
+ *                                       should contain an error message in the first position, followed by
+ *                                       additional arguments to be substituted into the message.
+ * @param  {Array} args The arguments passed to the assertion function
+ * @param  {String} message The default assertion error message
+ * @param  {String} userMessage The user-supplied error message
+ * @throws {AssertionError} If the assertion failed.
+ */
+function handleAssertionResult(result, args, message, userMessage) {
+  var isArr;
+  // success can be signalled by returning true, or returning nothing.
+  if (result !== true && typeof result !== 'undefined') {
+    isArr = util.isArray(result);
+
+    // if we have an array
+    if (isArr) {
+      // grab all but the first element and add that to the arguments
+      args = args.concat(result.slice(1));
+      // grab the first element and make that the error message
+      result = result[0];
+    }
+    // if the result is a string, use that instead of the default
+    if (typeof result === 'string') {
+      // the default message can be inserted by using '%1' in the error
+      message = result.replace(/%1/, message || '');
+    }
+    throw new AssertionError(message, args, userMessage);
+  }
+}
+
+/**
+ *  Builds the actual assertion function.
+ *  @param {Function} condition The function which tests the assertion
+ *  @param {String} message A default assertions message.
+ *  @param {*...} Additional arguments which are to be passed to the condition function
+ *  @return {Function} The assertion, ready to run.
+ */
+function build (condition, message/*, args */) {
+  var args = Array.prototype.slice.call(arguments, 2),
+      since;
+  ++unexecutedAssertions;
+  since = function (userMessage) {
+    try {
+      if (internalAssertionCount++ === 0) {
+        ++currentTestAssertions;
       }
-    };
+      // if this is the first time we've executed this assertion, then decrease the counter, and don't count this
+      // one again
+      if (!since.executed) {
+        --unexecutedAssertions;
+        since.executed = true;
+      }
+      handleAssertionResult(condition.apply(assert, args), args, message, userMessage);
+    } finally {
+      --internalAssertionCount;
+    }
+  };
+  since.executed = false;
+  since.since = since;
+  return since;
+}
 
-    /**
-     *  Builds the actual assertion function.
-     *  @param {Function} condition The function which tests the assertion
-     *  @param {String} message A default assertions message.
-     *  @param {*...} Additional arguments which are to be passed to the condition function
-     *  @return {Function} The assertion, ready to run.
-     */
-    build = function (condition, message/*, args */) {
-      var args = Array.prototype.slice.call(arguments, 2),
-          since;
-      ++unexecutedAssertions;
-      since = function (userMessage) {
-        try {
-          if (internalAssertionCount++ === 0) {
-            ++currentTestAssertions;
-          }
-          // if this is the first time we've executed this assertion, then decrease the counter, and don't count this
-          // one again
-          if (!since.executed) {
-            --unexecutedAssertions;
-            since.executed = true;
-          }
-          handleAssertionResult(condition.apply(assert, args), args, message, userMessage);
-        } finally {
-          --internalAssertionCount;
+function invert (normalSince) {
+  var since = function (userMessage) {
+    var ok = false,
+        message;
+    try {
+      normalSince(userMessage);
+      message = 'The assertion passed when it was not supposed to';
+    } catch (e) {
+      if (!(e instanceof AssertionError)) {
+        throw e;
+      } else {
+        message = e.message;
+        ok = true;
+      }
+    }
+    handleAssertionResult(ok, [], message, userMessage);
+  };
+  since.since = since;
+  return since;
+}
+
+});
+
+define('SkipMe',['require','exports','module'],function (require, exports, module) {/**
+ * SkipMe exception. This is thrown by tests when `this.skip()` or `this.skipIf(true)` is called.
+ * @class
+ * @param {String} reason A reason for this test to be skipped.
+ */
+var SkipMe;
+module.exports = SkipMe = function (reason) {
+  this.message = reason;
+};
+SkipMe.prototype.name = 'SkipMe';
+
+});
+
+define('testStatuses',['require','exports','module'],function (require, exports, module) {module.exports = {
+  PASS: 0,
+  FAIL: 1,
+  SKIP: 2
+};
+
+});
+
+define('Test',['require','exports','module','Assert','AssertionError','root','SkipMe','testStatuses','util'],function (require, exports, module) {
+var Test,
+    Assert         = require('Assert'),
+    AssertionError = require('AssertionError'),
+    root           = require('root'),
+    SkipMe         = require('SkipMe'),
+    testStatuses   = require('testStatuses'),
+    util           = require('util'),
+    PASS = testStatuses.PASS,
+    SKIP = testStatuses.SKIP,
+    FAIL = testStatuses.FAIL;
+
+module.exports = Test = function Test (name, expectedAssertions, body, asyncFn) {
+  if (typeof expectedAssertions !== 'number') {
+    asyncFn = body;
+    body = expectedAssertions;
+  } else {
+    this.expect(expectedAssertions);
+  }
+  if (typeof name !== 'string') {
+    throw new Error('Test instantiated without a name.');
+  }
+  this.name = name;
+  this.body = body;
+  this.asyncFn = asyncFn;
+};
+
+util.extend(Test.prototype, {
+  /** @type {Status} one of PASS, FAIL, SKIP or null */
+  status : null,
+  statusMessage: '',
+  runTime : -1,
+  error : null,       // If an error (not an AssertionError is thrown it is stored here)
+  exception : null,   // Any thrown error is stored here (including AssertionErrors)
+  asyncFn : null,
+  expectedAssertions : -1,
+  assertionCount: 0,
+  ///////////////
+  /**
+   *  Skip this test.
+   *  @param {String=} reason A reason why this test is being skipped.
+   */
+  skip : function (reason) {
+    throw new SkipMe(reason);
+  },
+  /**
+   *  Conditionally skip this test.
+   *  @example
+   *  this.skipIf(typeof window === 'undefined', "Test only applies to browsers")
+   *  @param {Boolean} condition
+   *  @param {String=} reason A reason why this test is being skipped.
+   */
+  skipIf : function (condition, reason) {
+    if (condition) {
+      this.skip(reason);
+    }
+  },
+  /**
+   *  Expect an exact number of assertions that should be run by this test.
+   *  @param {Number} numAssertions
+   */
+  expect : function (numAssertions) {
+    this.expectedAssertions = numAssertions;
+  },
+  /**
+   *  @protected
+   */
+  run : function (callback) {
+    var start, success, handleError,
+        callbackExecuted = false, test = this;
+
+    success = function () {
+      test.runTime = new Date() - start;
+      test.status = PASS;
+      test.statusMessage = 'Passed';
+      callback(test);
+    };
+    handleError = function (e) {
+      var message = (e && e.message) || String(e);
+      if (e instanceof SkipMe) {
+        test.status = SKIP;
+        test.statusMessage = "Skipped" + (e.message ? " because " + e.message : "");
+      } else {
+        test.status = FAIL;
+        test.statusMessage = "Failed" + (message ? ": " + message : "");
+        test.exception = e;
+        if (!(e instanceof AssertionError)) {
+          test.error = e;
         }
-      };
-      since.executed = false;
-      since.since = since;
-      return since;
+      }
+      callback(test);
     };
-
-    invert = function (normalSince) {
-      var since = function (userMessage) {
-        var ok = false,
-            message;
-        try {
-          normalSince(userMessage);
-          message = 'The assertion passed when it was not supposed to';
-        } catch (e) {
-          if (!(e instanceof AssertionError)) {
-            throw e;
-          } else {
-            message = e.message;
-            ok = true;
+    try {
+      Assert.startTest();
+      start = new Date();
+      if (this.asyncFn) {
+        // actually executes the asyncTest here.
+        this.body(function (variables) {
+          if (!callbackExecuted) {
+            callbackExecuted = true;
+            runAssertions(test, {
+              assertions: function () {
+                test.asyncFn.call(variables || {}, Assert.assert);
+              },
+              success: success,
+              failure: handleError
+            });
           }
-        }
-        handleAssertionResult(ok, [], message, userMessage);
-      };
-      since.since = since;
-      return since;
-    };
-
-    extend(Tyrtle, {
-      /**
-       *  Global assertions, added to all modules of all instances of Tyrtle
-       *  @param {Object} newAssertions A map of AssertionName => AssertionFunction
-       */
-      addAssertions : function (newAssertions) {
-        each(newAssertions, function (fn, name) {
-          assertions[name] = function () {
-            return build.apply(null, [fn, "", this.subject].concat(slice.apply(arguments)));
-          };
         });
-      },
-      /**
-       * Check whether an assertion exists.
-       * @param  {String} assertionName The name of an assertion to check
-       * @return {Boolean}
-       */
-      hasAssertion : function (assertionName) {
-        return assertions.hasOwnProperty(assertionName);
-      },
-      /**
-       * Remove an assertion.
-       * @param  {String} assertionName The name of an assertions to remove
-       */
-      removeAssertion : function (assertionName) {
-        delete assertions[assertionName];
+      } else {
+        runAssertions(test, {
+          assertions: function () {
+            test.body(Assert.assert);
+          },
+          success: success,
+          failure: handleError
+        });
+      }
+    } catch (e) {
+      handleError(e);
+    }
+  }
+});
+
+function runAssertions (test, options) {
+  var assertionsFn = options.assertions,
+      successFn    = options.success,
+      onError      = options.failure;
+
+  try {
+    assertionsFn();
+    Assert.endTest(test);
+    successFn();
+  } catch (e) {
+    onError(e);
+  }
+}
+
+
+});
+
+define('Module',['require','exports','module','renderer','Test','testStatuses','util'],function (require, exports, module) {
+var Module,
+    renderer = require('renderer'),
+    Test = require('Test'),
+    testStatuses = require('testStatuses'),
+    util = require('util'),
+    PASS = testStatuses.PASS,
+    FAIL = testStatuses.FAIL,
+    SKIP = testStatuses.SKIP;
+
+/**
+ * A testing module. Represents a logical grouping of tests. A Module can have custom **helpers** to assist in
+ * setting up and cleaning up the tests, as well as custom assertions which streamline writing the tests.
+ *
+ * @class
+ * @param {String} name The name of this module
+ * @param {Function} body The body of this function.
+ */
+module.exports = Module = function (name, body) {
+  if (!body && util.isFunction(name)) {
+    throw new Error("Module instantiated without a name.");
+  }
+  this.name = name;
+  this.tests = [];
+  this.helpers = {};
+  this.amdName = null;
+  body.call(this);
+};
+
+function addHelper(name, fn) {
+  if (!this.helpers[name]) {
+    this.helpers[name] = [];
+  }
+  this.helpers[name].push(fn);
+}
+function runHelper(helpers, callback, catchBlock) {
+  if (helpers && helpers.length) {
+    var helper = helpers[0];
+    try {
+      if (helper.length) {
+        helper(function () {
+          runHelper(helpers.slice(1), callback, catchBlock);
+        });
+      } else {
+        helper();
+        runHelper(helpers.slice(1), callback, catchBlock);
+      }
+    } catch (e) {
+      catchBlock(e);
+    }
+  } else {
+    callback();
+  }
+}
+
+util.extend(Module.prototype, {
+  tests : null,           // array of tests
+  tyrtle : null,          // reference to the owner Tyrtle instance
+  helpers : null,         // object containing the (before|after)(All)? functions
+  extraAssertions : null, // object holding custom assertions. Only populated if required.
+  skipAll: false,         // whether all tests in this module should be skipped
+  skipMessage: null,      // The skip message for all tests if they should all be skipped.
+  passes : 0,             // }
+  fails : 0,              // } counts of the test results
+  skips : 0,              // }
+  errors : 0,             // }
+  //////////////////////////
+  /**
+   * Create a new Test and add it to this Module
+   * @param  {String} name A name for this test.
+   * @param  {Number=} expectedAssertions The number of assertions this test is expected to run. Optional.
+   * @param  {Function} bodyFn The body function for this test.
+   * @param  {Function=} assertionsFn If writing an asynchronous test, this is the function where assertions
+   *                                  can be executed. For synchronous tests, *do not supply this parameter*.
+   * @return {Test} The newly created test.
+   */
+  test : function (name, expectedAssertions, bodyFn, assertionsFn) {
+    var t = new Test(name, expectedAssertions, bodyFn, assertionsFn);
+    this.tests.push(t);
+    return t;
+  },
+  /**
+   * Add a `before` helper which is executed *before each test* is started.
+   * @param  {Function} fn The body of the helper
+   */
+  before : function (fn) {
+    addHelper.call(this, 'before', fn);
+  },
+  /**
+   * Add an `after` helper which is executed *after each test* has finished.
+   * @param  {Function} fn The body of the helper
+   */
+  after : function (fn) {
+    addHelper.call(this, 'after', fn);
+  },
+  /**
+   * Add a `beforeAll` helper which is executed *before any tests* have started.
+   * @param  {Function} fn The body of the helper
+   */
+  beforeAll : function (fn) {
+    addHelper.call(this, 'beforeAll', fn);
+  },
+  /**
+   * Add an `afterAll` helper which is executed *after all tests* have finished.
+   * @param  {Function} fn The body of the helper
+   */
+  afterAll : function (fn) {
+    addHelper.call(this, 'afterAll', fn);
+  },
+  /**
+   * Add per-module (local) assertions to this module. These *may override built-in assertions*. Assertions
+   * defined here are not accessible or visible to any other modules.
+   *
+   * The assertion body should return `true` or `undefined` to indicate a pass. A string will be used as the
+   * default error message, and an array allows the assertion to add additional arguments to be substituted
+   * into the error message.
+   *
+   * @example
+   * this.addAssertions({
+   *    bigNumber : function (subject) {
+   *        // returns true or false. No error message for failing assertions.
+   *        return subject > 9000;
+   *    },
+   *    answer : function (subject) {
+   *        // returns true or a string. `subject` will be substituted for "{0}"
+   *        return subject === 42 || "The supplied value {0} is not the answer to life, & etc.";
+   *    }
+   *    biggerThan : function (subject, expected) {
+   *        // returns true or an array. `expected - subject` is added to the substitution list.
+   *        // assert(5).is.biggerThan(7)(); --> "5 is not bigger than 7. It is off by 2"
+   *        return subject > expected || ["{0} is not bigger than {1}. It is off by {2}", expected - subject];
+   *    }
+   * });
+   *
+   * @param {Object} fnMap A map of {String} AssertionName => {Function} AssertionBody.
+   */
+  addAssertions : function (fnMap) {
+    if (!this.extraAssertions) {
+      this.extraAssertions = fnMap;
+    } else {
+      util.extend(this.extraAssertions, fnMap);
+    }
+  },
+  setAMDName : function (amdName, index) {
+    this.amdName = amdName + (typeof index === 'number' ? ':' + index : '');
+  },
+
+  skipIf: function (condition, message) {
+    this.skipAll = !!condition;
+    this.skipMessage = condition ? message : null;
+  },
+
+  run : function (callback) {
+    var runNext,
+      i = -1,
+      l = this.tests.length,
+      j, jl,
+      mod = this
+    ;
+    runNext = function () {
+      var test;
+      if (++i >= l) { // we've done all the tests, break the loop.
+        // cleanUpAssertions();
+        runHelper(mod.helpers.afterAll, callback, function (e) {
+          test = mod.tests[mod.tests.length - 1];
+          if (test) {
+            switch (test.status) {
+              case PASS :
+                --mod.passes;
+                break;
+              case SKIP :
+                --mod.skips;
+                break;
+              case FAIL :
+                --mod.fails;
+            }
+            ++mod.fails;
+            if (!test.error) {
+              ++mod.errors;
+              test.error = e;
+            }
+          }
+          callback();
+        });
+      } else {
+        test = mod.tests[i];
+        if (mod.tyrtle.testFilter && test.name !== mod.tyrtle.testFilter) {
+          runNext();
+        } else {
+          mod.runTest(test, function () {
+            switch (test.status) {
+            case PASS :
+              ++mod.passes;
+              break;
+            case FAIL :
+              ++mod.fails;
+              if (test.error) {
+                ++mod.errors;
+              }
+              break;
+            case SKIP :
+              ++mod.skips;
+              break;
+            }
+            renderer.get().afterTest(test, mod, mod.tyrtle);
+            util.defer(runNext);
+          });
+        }
+      }
+    };
+
+    if (this.skipAll) {
+      for (j = 0, jl = mod.tests.length; j < jl; ++j) {
+        mod.tests[j].status = SKIP;
+        mod.tests[j].statusMessage = "Skipped" + (this.skipMessage ? " because " + this.skipMessage : "");
+      }
+      callback();
+    } else {
+      // TODO applyAssertions(this.extraAssertions);
+      runHelper(this.helpers.beforeAll, runNext, function (e) {
+        // mark all the tests as failed.
+        for (j = 0, jl = mod.tests.length; j < jl; ++j) {
+          renderer.get().beforeTest(mod.tests[j], mod, mod.tyrtle);
+          mod.tests[j].status = FAIL;
+          mod.tests[j].error = e;
+          renderer.get().afterTest(mod.tests[j], mod, mod.tyrtle);
+        }
+        // set the group statistics
+        mod.passes = mod.skips = 0;
+        mod.fails = mod.errors = jl;
+        i = l; // <-- so the 'runNext' function thinks it's done all the tests & will call the afterAll.
+        runNext();
+      });
+    }
+  },
+  /**
+   * @protected
+   */
+  runTest : function (test, callback) {
+    var m = this, t = this.tyrtle, go, done;
+    renderer.get().beforeTest(test, m, t);
+    go = function () {
+      test.run(done);
+    };
+    done = function () {
+      runHelper(m.helpers.after, callback, function (e) {
+        test.status = FAIL;
+        if (!test.error) {
+          test.statusMessage = "Error in the after helper. " + e.message;
+          test.error = e;
+        }
+        callback();
+      });
+    };
+    runHelper(this.helpers.before, go, function (e) {
+      test.status = FAIL;
+      test.statusMessage = "Error in the before helper.";
+      test.error = e;
+      done();
+    });
+  },
+  /**
+   * @protected
+   */
+  rerunTest : function (test, tyrtle, callback) {
+    var mod = this, run, complete;
+    switch (test.status) {
+    case PASS :
+      --this.passes;
+      --tyrtle.passes;
+      break;
+    case FAIL :
+      --this.fails;
+      --tyrtle.fails;
+      if (test.error) {
+        delete test.error;
+        --this.errors;
+        --tyrtle.errors;
+      }
+      break;
+    case SKIP :
+      --this.skips;
+      --tyrtle.skips;
+    }
+    run = function () {
+      // TODO applyAssertions(mod.extraAssertions);
+      mod.runTest(test, function () {
+        var aftersDone = function () {
+          switch (test.status) {
+          case PASS :
+            ++mod.passes;
+            ++tyrtle.passes;
+            break;
+          case FAIL :
+            ++mod.fails;
+            ++tyrtle.fails;
+            if (test.error) {
+              ++mod.errors;
+              ++tyrtle.errors;
+            }
+            break;
+          case SKIP :
+            ++mod.skips;
+            ++tyrtle.skips;
+          }
+          complete();
+        };
+        runHelper(mod.helpers.afterAll, aftersDone, function (e) {
+          test.status = FAIL;
+          test.error = e;
+          test.statusMessage = "Error in the afterAll helper";
+          aftersDone();
+        });
+      });
+    };
+    complete = function () {
+      var rend = renderer.get();
+      rend.afterTest(test, mod, tyrtle);
+      rend.afterModule(mod, tyrtle);
+      rend.afterRun(tyrtle);
+      // cleanUpAssertions();
+      if (callback) {
+        callback();
+      }
+    };
+    runHelper(this.helpers.beforeAll, run, function (e) {
+      test.status = FAIL;
+      test.error = e;
+      test.statusMessage = "Error in the beforeAll helper";
+      ++mod.fails;
+      ++tyrtle.fails;
+      ++mod.errors;
+      ++tyrtle.errors;
+      complete();
+    });
+  },
+  /**
+   * In order to serialize module we need to remove circular references
+   * the module object
+   */
+  toJSON: function () {
+    var copy = {};
+    util.extend(copy, this);
+    delete copy.tyrtle;
+    return copy;
+  }
+});
+
+});
+
+define('Tyrtle',['require','exports','module','Module','renderer','testStatuses','util'],function (require, exports, module) {/*!
+* Tyrtle - A JavaScript Unit Testing Framework
+*
+* Copyright (c) 2011-2012 Nick Fisher
+* Distributed under the terms of the LGPL
+* http://www.gnu.org/licenses/lgpl.html
+*/
+/*globals module, window */
+var Tyrtle,
+    Module = require('Module'),
+    renderer = require('renderer'),
+    testStatuses = require('testStatuses'),
+    util = require('util'),
+    PASS = testStatuses.PASS,
+    FAIL = testStatuses.FAIL,
+    SKIP = testStatuses.SKIP,
+    emptyRenderer,
+    getParam,
+    setParams,
+    // root = require('root'),
+    runningInNode
+    // moduleAssertions = null,  // the extra assertions added by an individual module
+;
+runningInNode = typeof window === 'undefined';
+
+//////////////////////////
+//  RUNTIME PARAMETERS  //
+//////////////////////////
+//#JSCOVERAGE_IF 0
+(function () {
+var urlParams, loadParams;
+loadParams = runningInNode
+  ? function () {
+    // node parameters must be set up manually and passed to the Tyrtle constructor
+    // this is because a test harness may use its own command line parameters
+    urlParams = {};
+  }
+  : function () {
+    urlParams = {};
+    var query, vars, i, l, pair;
+    query = window.location.search.substring(1);
+    vars = query.split("&");
+    for (i = 0, l = vars.length; i < l; ++i) {
+      pair = vars[i].split("=");
+      urlParams[decodeURIComponent(pair[0])] = decodeURIComponent(pair[1]);
+    }
+  }
+;
+
+getParam = function (name) {
+  if (!urlParams) {
+    loadParams();
+    loadParams = null;
+  }
+  return urlParams.hasOwnProperty(name) ? urlParams[name] : null;
+};
+setParams = function (params) {
+  urlParams = params || {};
+};
+}());
+//#JSCOVERAGE_ENDIF
+
+Tyrtle = module.exports = function (options) {
+  options = options || {};
+  this.modules = [];
+  this.callback = options.callback || util.noop;
+  this.modFilter = options.modFilter === false
+    ? null
+    : (typeof options.modFilter === 'string'
+       ? options.modFilter
+       : getParam('modFilter')
+      )
+  ;
+  this.testFilter = options.testFilter === false
+    ? null
+    : (typeof options.testFilter === 'string'
+       ? options.testFilter
+       : getParam('testFilter')
+     )
+  ;
+};
+emptyRenderer = {
+  beforeRun      : util.noop,
+  beforeModule   : util.noop,
+  beforeTest     : util.noop,
+  afterTest      : util.noop,
+  afterModule    : util.noop,
+  afterRun       : util.noop,
+  templateString : function (message) {
+    var args = Array.prototype.slice.call(arguments, 1);
+    return message.replace(
+      /\{([1-9][0-9]*|0)\}/g,
+      function (str, p1) {
+        var v = args[p1];
+        return (v === null
+          ? "NULL"
+          : (typeof v === "undefined"
+             ? "UNDEFINED"
+             : (v.toString ? v.toString() : String(v))
+          )
+        );
+      }
+    );
+  }
+};
+console.log('lalal');
+renderer.set(emptyRenderer);
+
+// Static methods and properties
+util.extend(Tyrtle, {
+  PASS : PASS,
+  FAIL : FAIL,
+  SKIP : SKIP,
+  util : util,
+  /**
+   *  Get the current renderer
+   *  @return {Object}
+   */
+  getRenderer : renderer.get,
+  /**
+   *  Set the current renderer. This is a static method because the renderer is global to all instances of
+   *  Tyrtle. If one of the renderer properties is not specified, then the corresponding property from
+   *  `emptyRenderer` is used.
+   *  @param {Object} renderer
+   */
+  setRenderer : function (renderer) {
+    util.each(emptyRenderer, function (val, key) {
+      if (!(key in renderer)) {
+        renderer[key] = val;
       }
     });
-  }());
-
-  // Export some of our helper functions too.
-  // They might be useful to someone!
-  extend(Tyrtle, {
-    isArray  : isArray,
-    isRegExp : isRegExp,
-    isDate   : isDate,
-    getKeys  : getKeys
-  });
-
-//#JSCOVERAGE_IF
-  if (typeof module !== 'undefined' && module.exports) {
-    module.exports = Tyrtle;
-  } else {
-    root.Tyrtle = Tyrtle;
+    renderer.set(renderer);
+  },
+  /**
+   *  Set the parameters which Tyrtle uses for default values. In the browser, Tyrtle will automatically use
+   *  the parameters specified in the url.
+   */
+  setParams : setParams,
+  /**
+   * Static method used when you do not have an instance of Tyrtle yet. Modules returned by this function must
+   * still be added to an instance of Tyrtle using Tyrtle.module()
+   *
+   * @param  {String} name The name of the module
+   * @param  {Function} body   The body function of the module
+   *
+   * @return {Module}
+   */
+  module : function (name, body) {
+    return new Module(name, body);
   }
-}(this));
+});
+
+// instance methods and properties
+util.extend(Tyrtle.prototype, {
+  passes : 0,
+  fails : 0,
+  errors : 0,
+  skips : 0,
+  startTime: 0,
+  runTime: -1,
+  ////
+  /**
+   * Create a new test module and add it to this instance of Tyrtle
+   *
+   * @param  {String} name The name for this module
+   * @param  {Function} body The body of the module which can define tests, local variables and test helpers,
+   *                         like before, after, beforeAll and afterAll
+   */
+  module : function (name, body) {
+    var m;
+    if (arguments.length === 1 && name instanceof Module) {
+      m = name;
+    } else if (arguments.length === 1 && typeof name === 'object') {
+      util.each(name, function (body, name) {
+        this.module(name, body);
+      }, this);
+      return;
+    } else {
+      m = new Module(name, body);
+    }
+    m.tyrtle = this;
+    this.modules.push(m);
+  },
+  /**
+   * Execute the test suite.
+   */
+  run : function () {
+    var runNext,
+      i = -1,
+      l = this.modules.length,
+      tyrtle = this
+    ;
+    this.startTime = +(new Date());
+    renderer.get().beforeRun(this);
+    runNext = function () {
+      var mod;
+      ++i;
+      if (i === l) {
+        tyrtle.runTime = +(new Date()) - tyrtle.startTime;
+        renderer.get().afterRun(tyrtle);
+        tyrtle.callback();
+      } else {
+        mod = tyrtle.modules[i];
+        if (tyrtle.modFilter && mod.name !== tyrtle.modFilter) {
+          runNext();
+        } else {
+          runModule(mod, tyrtle, function () {
+            util.each(['passes', 'fails', 'errors', 'skips'], function (key) {
+              tyrtle[key] += mod[key];
+            });
+            util.defer(runNext);
+          });
+        }
+      }
+    };
+    runNext();
+  }
+});
+
+function runModule (mod, tyrtle, callback) {
+  renderer.get().beforeModule(mod, tyrtle);
+  mod.run(function () {
+    renderer.get().afterModule(mod, tyrtle);
+    callback();
+  });
+}
 
 });
   return require('Tyrtle');

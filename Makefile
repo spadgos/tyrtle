@@ -8,7 +8,7 @@ all: install build
 install:
 	npm install
 
-build: combine clean
+build: combine
 
 convert:
 	$(RJS) -convert $(SRC_DIR) $(TMP_DIR)
