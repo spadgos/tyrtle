@@ -97,7 +97,6 @@ asyncTest("Tyrtle assertions", function () {
     var undef, CustomError = function () {},
       myObj, handleFoo, handleBar
     ;
-
     this.addAssertions({
       cool: function (subject) {
         return subject === 'nickf';
@@ -106,19 +105,19 @@ asyncTest("Tyrtle assertions", function () {
 
     this.test("is", function (assert) {
       var x = 3;
-      assert.that(x).is(3).since("x should be three");
-      assert.that(x).is(3)("x should be three");
-      assert(x).is(3)("x should be three");
-      assert(x)(3)("x should be three");
+      assert.that(x).is(3).since('x should be three');
+      assert.that(x).is(3)('x should be three');
+      assert(x).is(3)('x should be three');
+      assert(x)(3)('x should be three');
     });
     this.test('not()', function (assert) {
       var x = 3;
-      assert.that(x).is.not('3').since("x should not be a string");
-      assert.that(x).is.not('3')("x should not be a string");
-      assert(x).is.not('3')("x should not be a string");
+      assert.that(x).is.not('3').since('x should not be a string');
+      assert.that(x).is.not('3')('x should not be a string');
+      assert(x).is.not('3')('x should not be a string');
       assert(x).not('3')('x should not be a string');
-      assert.that(x).not(undef)("x should not be undefined");
-      assert.that(x).is.not(undef)("x should not be undefined when using `is`");
+      assert.that(x).not(undef)('x should not be undefined');
+      assert.that(x).is.not(undef)('x should not be undefined when using `is`');
     });
 
     this.test('testing against NaN', function (assert) {

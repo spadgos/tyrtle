@@ -137,7 +137,7 @@ runTests = function () {
           continue;
         }
         run = true;
-        if (Tyrtle.isArray(tests)) {
+        if (Tyrtle.util.isArray(tests)) {
           for (i = 0, l = tests.length; i < l; ++i) {
             t.module(tests[i]);
           }

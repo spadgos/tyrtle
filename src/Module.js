@@ -1,5 +1,6 @@
 
 var Module,
+    Assert = require('Assert'),
     renderer = require('renderer'),
     Test = require('Test'),
     testStatuses = require('testStatuses'),
@@ -160,7 +161,7 @@ util.extend(Module.prototype, {
     runNext = function () {
       var test;
       if (++i >= l) { // we've done all the tests, break the loop.
-        // cleanUpAssertions();
+        Assert.clearTemporaryAssertions();
         runHelper(mod.helpers.afterAll, callback, function (e) {
           test = mod.tests[mod.tests.length - 1];
           if (test) {
@@ -216,7 +217,7 @@ util.extend(Module.prototype, {
       }
       callback();
     } else {
-      // TODO applyAssertions(this.extraAssertions);
+      Assert.setTemporaryAssertions(this.extraAssertions);
       runHelper(this.helpers.beforeAll, runNext, function (e) {
         // mark all the tests as failed.
         for (j = 0, jl = mod.tests.length; j < jl; ++j) {
@@ -283,7 +284,7 @@ util.extend(Module.prototype, {
       --tyrtle.skips;
     }
     run = function () {
-      // TODO applyAssertions(mod.extraAssertions);
+      Assert.setTemporaryAssertions(mod.extraAssertions);
       mod.runTest(test, function () {
         var aftersDone = function () {
           switch (test.status) {

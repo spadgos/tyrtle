@@ -675,11 +675,12 @@ var Assert,
     originalUnexecutedAssertions,
     bodies,
     oldGlobals,
+    temporaryAssertions,
     slice = Array.prototype.slice,
     util = require('util'),
     root = require('root');
 
-Assert = module.exports = {
+module.exports = Assert = {
   assert: assert,
   startTest: function () {
     currentTestAssertions = 0;
@@ -716,6 +717,14 @@ Assert = module.exports = {
         return build.apply(null, [fn, "", this.subject].concat(slice.apply(arguments)));
       };
     });
+  },
+
+  setTemporaryAssertions: function (newAssertions) {
+    temporaryAssertions = newAssertions;
+  },
+
+  clearTemporaryAssertions: function () {
+    temporaryAssertions = null;
   },
   /**
    * Check whether an assertion exists.
@@ -1094,14 +1103,14 @@ function assert (actual) {
   });
   // Copy the module-specific functions onto the assertion object
   // The syntax for these is simpler than the built-in ones, so we have to do the heavy lifting here
-  // util.each(moduleAssertions, function (fn, key) {
-  //   is[key] = function () {
-  //     return build.apply(null, [fn, "", is.subject].concat(slice.apply(arguments)));
-  //   };
-  //   is.not[key] = function () {
-  //     return invert(build.apply(null, [fn, "", is.subject].concat(slice.apply(arguments))));
-  //   };
-  // });
+  util.each(temporaryAssertions, function (fn, key) {
+    is[key] = function () {
+      return build.apply(null, [fn, "", is.subject].concat(slice.apply(arguments)));
+    };
+    is.not[key] = function () {
+      return invert(build.apply(null, [fn, "", is.subject].concat(slice.apply(arguments))));
+    };
+  });
 
   is.subject = actual;
   is.is = is; // head hurts.
@@ -1359,8 +1368,9 @@ function runAssertions (test, options) {
 
 });
 
-define('Module',['require','exports','module','renderer','Test','testStatuses','util'],function (require, exports, module) {
+define('Module',['require','exports','module','Assert','renderer','Test','testStatuses','util'],function (require, exports, module) {
 var Module,
+    Assert = require('Assert'),
     renderer = require('renderer'),
     Test = require('Test'),
     testStatuses = require('testStatuses'),
@@ -1521,7 +1531,7 @@ util.extend(Module.prototype, {
     runNext = function () {
       var test;
       if (++i >= l) { // we've done all the tests, break the loop.
-        // cleanUpAssertions();
+        Assert.clearTemporaryAssertions();
         runHelper(mod.helpers.afterAll, callback, function (e) {
           test = mod.tests[mod.tests.length - 1];
           if (test) {
@@ -1577,7 +1587,7 @@ util.extend(Module.prototype, {
       }
       callback();
     } else {
-      // TODO applyAssertions(this.extraAssertions);
+      Assert.setTemporaryAssertions(this.extraAssertions);
       runHelper(this.helpers.beforeAll, runNext, function (e) {
         // mark all the tests as failed.
         for (j = 0, jl = mod.tests.length; j < jl; ++j) {
@@ -1644,7 +1654,7 @@ util.extend(Module.prototype, {
       --tyrtle.skips;
     }
     run = function () {
-      // TODO applyAssertions(mod.extraAssertions);
+      Assert.setTemporaryAssertions(mod.extraAssertions);
       mod.runTest(test, function () {
         var aftersDone = function () {
           switch (test.status) {
@@ -1709,7 +1719,7 @@ util.extend(Module.prototype, {
 
 });
 
-define('Tyrtle',['require','exports','module','Module','renderer','testStatuses','util'],function (require, exports, module) {/*!
+define('Tyrtle',['require','exports','module','Assert','Module','renderer','testStatuses','util'],function (require, exports, module) {/*!
 * Tyrtle - A JavaScript Unit Testing Framework
 *
 * Copyright (c) 2011-2012 Nick Fisher
@@ -1718,6 +1728,7 @@ define('Tyrtle',['require','exports','module','Module','renderer','testStatuses'
 */
 /*globals module, window */
 var Tyrtle,
+    Assert = require('Assert'),
     Module = require('Module'),
     renderer = require('renderer'),
     testStatuses = require('testStatuses'),
@@ -1814,7 +1825,7 @@ emptyRenderer = {
     );
   }
 };
-console.log('lalal');
+
 renderer.set(emptyRenderer);
 
 // Static methods and properties
@@ -1823,6 +1834,9 @@ util.extend(Tyrtle, {
   FAIL : FAIL,
   SKIP : SKIP,
   util : util,
+  addAssertions  : Assert.addAssertions,
+  hasAssertion   : Assert.hasAssertion,
+  removeAssertion: Assert.removeAssertion,
   /**
    *  Get the current renderer
    *  @return {Object}
@@ -1834,13 +1848,13 @@ util.extend(Tyrtle, {
    *  `emptyRenderer` is used.
    *  @param {Object} renderer
    */
-  setRenderer : function (renderer) {
+  setRenderer : function (rend) {
     util.each(emptyRenderer, function (val, key) {
-      if (!(key in renderer)) {
-        renderer[key] = val;
+      if (!(key in rend)) {
+        rend[key] = val;
       }
     });
-    renderer.set(renderer);
+    renderer.set(rend);
   },
   /**
    *  Set the parameters which Tyrtle uses for default values. In the browser, Tyrtle will automatically use

@@ -39,14 +39,14 @@ colorful = (function () {
     return "\u001b[" + (bold ? "1;" : "") + colors[colour] + "m" + str + "\u001b[0m";
   };
 }());
-monochrome = function (colour, bold, str) {
+monochrome = function (/*colour, bold, str*/) {
   return arguments[arguments.length - 1];
 };
 color = colorful;
 
 
 colorVariable = function (v) {
-  var vType = typeof v, str, ii, len, tmp, colors;
+  var vType = typeof v, str, colors;
   colors = {
     nullish : 'dgray',
     date : 'purple',
@@ -62,14 +62,14 @@ colorVariable = function (v) {
     str = color(colors.nullish, String(v));
   } else if (vType === 'string') {
     str = "'" + color(colors.string, v) + "'";
-  } else if (Tyrtle.isDate(v)) {
+  } else if (Tyrtle.util.isDate(v)) {
     str = color(colors.date, String(v));
-  } else if (Tyrtle.isRegExp(v)) {
+  } else if (Tyrtle.util.isRegExp(v)) {
     str = color(colors.regex, v.toString());
   } else if (vType === 'function') {
     str = color(colors['function'], "Function" + (v.name ? " " + v.name : ""));
   } else if (vType === 'object') {
-    if (Tyrtle.isArray(v)) {
+    if (Tyrtle.util.isArray(v)) {
       str = color(colors.array, "Array (length: ")
         + color(colors.number, v.length)
         + color(colors.array, ")");
@@ -91,18 +91,16 @@ module.exports = {
   setMonochrome : function (mono) {
     color = mono ? monochrome : colorful;
   },
-  beforeRun : function (ty) {
+  beforeRun : function (/*ty*/) {
     table = new Table(8, 60, 6);
     table.columnDividers = true;
   },
-  beforeModule : function (m, ty) {
-    var str = color('lblue', m.name),
-      l = m.name.length
-    ;
+  beforeModule : function (m /*, ty*/) {
+    var str = color('lblue', m.name);
     console.log("\n" + str + "\n" + color('lgray', repeat("-", 80)));
     this.rowOffset = 1;
   },
-  afterTest : function (test, m, ty) {
+  afterTest : function (test, m /*, ty*/) {
     var str = color('white', test.name),
       status,
       col,
@@ -152,7 +150,6 @@ module.exports = {
     var richText,
       argsRegex = /\{args\}/g,
       expandedArgs, i, l,
-      self = this,
       args
     ;
 

@@ -3,7 +3,7 @@ SRC_DIR=src
 BUILD_OPTIONS=build/build.js
 RJS=r.js
 
-all: install build
+all: install build clean
 
 install:
 	npm install

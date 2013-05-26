@@ -7,6 +7,7 @@
 */
 /*globals module, window */
 var Tyrtle,
+    Assert = require('Assert'),
     Module = require('Module'),
     renderer = require('renderer'),
     testStatuses = require('testStatuses'),
@@ -60,7 +61,7 @@ setParams = function (params) {
 }());
 //#JSCOVERAGE_ENDIF
 
-Tyrtle = module.exports = function (options) {
+module.exports = Tyrtle = function (options) {
   options = options || {};
   this.modules = [];
   this.callback = options.callback || util.noop;
@@ -103,7 +104,7 @@ emptyRenderer = {
     );
   }
 };
-console.log('lalal');
+
 renderer.set(emptyRenderer);
 
 // Static methods and properties
@@ -112,6 +113,9 @@ util.extend(Tyrtle, {
   FAIL : FAIL,
   SKIP : SKIP,
   util : util,
+  addAssertions  : Assert.addAssertions,
+  hasAssertion   : Assert.hasAssertion,
+  removeAssertion: Assert.removeAssertion,
   /**
    *  Get the current renderer
    *  @return {Object}
@@ -123,13 +127,13 @@ util.extend(Tyrtle, {
    *  `emptyRenderer` is used.
    *  @param {Object} renderer
    */
-  setRenderer : function (renderer) {
+  setRenderer : function (rend) {
     util.each(emptyRenderer, function (val, key) {
-      if (!(key in renderer)) {
-        renderer[key] = val;
+      if (!(key in rend)) {
+        rend[key] = val;
       }
     });
-    renderer.set(renderer);
+    renderer.set(rend);
   },
   /**
    *  Set the parameters which Tyrtle uses for default values. In the browser, Tyrtle will automatically use
