@@ -169,6 +169,7 @@ util.extend(Tyrtle.prototype, {
    * @param  {String} name The name for this module
    * @param  {Function} body The body of the module which can define tests, local variables and test helpers,
    *                         like before, after, beforeAll and afterAll
+   * @return {Module} The newly created module
    */
   module : function (name, body) {
     var m;
@@ -184,6 +185,7 @@ util.extend(Tyrtle.prototype, {
     }
     m.tyrtle = this;
     this.modules.push(m);
+    return m;
   },
   /**
    * Execute the test suite.

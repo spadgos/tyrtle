@@ -73,10 +73,8 @@ asyncTest("Callback function called more than once", function () {
     this.test('a', function (callback) {
       callback();
       callback();
-    }, function (assert) {
-      if (callCount++) {
-        ok(false);
-      }
+    }, function (/*assert*/) {
+      ok(callCount++ === 0, 'This should only be called once');
     });
   });
   t.run();

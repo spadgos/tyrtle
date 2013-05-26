@@ -43,6 +43,35 @@ asyncTest("Tests can be skipped always and conditionally", function () {
   });
   t.run();
 });
+
+asyncTest('Modules can be skipped always and conditionally', function () {
+  var t = new Tyrtle({
+    callback: function () {
+      equal(this.passes, 1, 'One test should have been executed');
+      equal(this.fails, 0, 'None should have failed');
+      equal(this.errors, 0, 'No errors plz');
+      equal(this.skips, 3, 'Three tests (in two modules) should have been skipped');
+      start();
+    }
+  });
+  t.module('Skip always', function () {
+    this.skip('should skip');
+    this.test('a test', function () {});
+    this.test('another test', function () {});
+  });
+
+  t.module('Skip conditionally', function () {
+    this.skipIf(true, 'should skip');
+    this.test('a test', function () {});
+  });
+
+  t.module('Don\'t skip', function () {
+    this.skipIf(false, 'should skip');
+    this.test('a test', function () {});
+  });
+  t.run();
+});
+
 asyncTest("Errors are reported as failures", function () {
   expect(4);
 
@@ -195,6 +224,22 @@ test("Tests must have a name", function () {
     t.module('a module', function () {
       this.test(function () {});
     });
-    t.run();
   }, /Test instantiated without a name./);
+});
+
+test('Tyrtle can be serialized to JSON', function () {
+  var t = new Tyrtle();
+  t.module('some name', function () {
+    this.test('some test', function () {});
+  });
+
+  equal(typeof JSON.stringify(t), 'string');
+});
+
+test('Tyrtle modules can be associated with an AMD module', function () {
+  var t = new Tyrtle(),
+      m = t.module('Some module', function () {});
+  m.setAMDName('path/to/test');
+
+  equal(m.amdName, 'path/to/test');
 });

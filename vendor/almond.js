@@ -7,7 +7,7 @@
 //be followed.
 /*jslint sloppy: true */
 /*global setTimeout: false */
-
+//#JSCOVERAGE_IF 0
 var requirejs, require, define;
 (function(undef) {
   var main, req, makeMap, handlers, defined = {},
@@ -395,3 +395,4 @@ var requirejs, require, define;
     jQuery: true
   };
 }());
+//#JSCOVERAGE_ENDIF

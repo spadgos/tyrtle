@@ -146,6 +146,10 @@ util.extend(Module.prototype, {
     this.amdName = amdName + (typeof index === 'number' ? ':' + index : '');
   },
 
+  skip: function (message) {
+    this.skipIf(true, message);
+  },
+
   skipIf: function (condition, message) {
     this.skipAll = !!condition;
     this.skipMessage = condition ? message : null;
@@ -215,6 +219,7 @@ util.extend(Module.prototype, {
         mod.tests[j].status = SKIP;
         mod.tests[j].statusMessage = "Skipped" + (this.skipMessage ? " because " + this.skipMessage : "");
       }
+      mod.skips = jl;
       callback();
     } else {
       Assert.setTemporaryAssertions(this.extraAssertions);

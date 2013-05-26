@@ -1,4 +1,5 @@
 (function (root, Tyrtle) {
+//#JSCOVERAGE_IF
   if (typeof module !== 'undefined' && module.exports) {
     module.exports = Tyrtle;
   } else {
@@ -15,7 +16,7 @@
 //be followed.
 /*jslint sloppy: true */
 /*global setTimeout: false */
-
+//#JSCOVERAGE_IF 0
 var requirejs, require, define;
 (function(undef) {
   var main, req, makeMap, handlers, defined = {},
@@ -403,7 +404,8 @@ var requirejs, require, define;
     jQuery: true
   };
 }());
-
+//#JSCOVERAGE_ENDIF
+;
 define("../vendor/almond", function(){});
 
 define('renderer',['require','exports','module'],function (require, exports, module) {var renderer;
@@ -428,8 +430,10 @@ module.exports = (function () {
 
 });
 
-define('util',['require','exports','module','root'],function (require, exports, module) {//#JSCOVERAGE_IF 0
-
+define('util',['require','exports','module','root'],function (require, exports, module) {/**
+ * Helper methods for Tyrtle. These are also exported on Tyrtle.util
+ */
+//#JSCOVERAGE_IF 0
 var util,
     root = require('root'),
     nativeBind = Function.prototype.bind,
@@ -1537,6 +1541,10 @@ util.extend(Module.prototype, {
     this.amdName = amdName + (typeof index === 'number' ? ':' + index : '');
   },
 
+  skip: function (message) {
+    this.skipIf(true, message);
+  },
+
   skipIf: function (condition, message) {
     this.skipAll = !!condition;
     this.skipMessage = condition ? message : null;
@@ -1606,6 +1614,7 @@ util.extend(Module.prototype, {
         mod.tests[j].status = SKIP;
         mod.tests[j].statusMessage = "Skipped" + (this.skipMessage ? " because " + this.skipMessage : "");
       }
+      mod.skips = jl;
       callback();
     } else {
       Assert.setTemporaryAssertions(this.extraAssertions);
@@ -1911,6 +1920,7 @@ util.extend(Tyrtle.prototype, {
    * @param  {String} name The name for this module
    * @param  {Function} body The body of the module which can define tests, local variables and test helpers,
    *                         like before, after, beforeAll and afterAll
+   * @return {Module} The newly created module
    */
   module : function (name, body) {
     var m;
@@ -1926,6 +1936,7 @@ util.extend(Tyrtle.prototype, {
     }
     m.tyrtle = this;
     this.modules.push(m);
+    return m;
   },
   /**
    * Execute the test suite.

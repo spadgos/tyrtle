@@ -1,5 +1,7 @@
+/**
+ * Helper methods for Tyrtle. These are also exported on Tyrtle.util
+ */
 //#JSCOVERAGE_IF 0
-
 var util,
     root = require('root'),
     nativeBind = Function.prototype.bind,
