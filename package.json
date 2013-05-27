@@ -1,7 +1,7 @@
 {
   "name" : "Tyrtle",
   "description" : "A unit test framework for browsers and node",
-  "version" : "0.1.0",
+  "version" : "2.0.0",
   "homepage" : "http://github.com/spadgos/tyrtle/wiki",
   "author" : {
     "name" : "Nick Fisher",
