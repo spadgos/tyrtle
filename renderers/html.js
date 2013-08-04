@@ -112,7 +112,7 @@ Tyrtle.setRenderer(new (function () {
         id = 'tyrtle_' + getUniqueId();
         $out.attr('id', id).addClass('clickable');
 
-        $('#' + id).live('click', function () {
+        $(document).on('click', '#' + id, function () {
           var log;
           if (window.console.dir && (vType === 'function' || (vType === 'array' && v.length === 0))) {
             log = window.console.log;
