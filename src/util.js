@@ -19,6 +19,24 @@ module.exports = util = {
     }
     return target;
   },
+
+  timeout: function (fn /*, time, context*/) {
+    var args = slice.call(arguments, 1),
+        timeoutId,
+        timeoutObj;
+
+    args.unshift(function () {
+      timeoutObj.clear();
+      timeoutObj.executed = true;
+      fn.apply(this, arguments);
+    });
+    timeoutId = root.setTimeout.apply(root, args);
+    timeoutObj = {
+      clear: util.bind(root.clearTimeout, root, timeoutId),
+      executed: false
+    };
+    return timeoutObj;
+  },
   defer: !root.postMessage
         /**
          * The regular defer method using a 0ms setTimeout. In reality, this will be executed in 4-10ms.

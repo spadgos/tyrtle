@@ -35,6 +35,7 @@ util.extend(Test.prototype, {
   asyncFn : null,
   expectedAssertions : -1,
   assertionCount: 0,
+  module: null,
   ///////////////
   /**
    *  Skip this test.
@@ -62,11 +63,19 @@ util.extend(Test.prototype, {
   expect : function (numAssertions) {
     this.expectedAssertions = numAssertions;
   },
-  /**
-   *  @protected
-   */
+
+  getTimeout: function () {
+    return this.timeout || this.module.getTimeout();
+  },
+
+  setTimeout: function (time) {
+    this.timeout = Math.max(time, 0);
+  },
+
   run : function (callback) {
     var start, success, handleError,
+        asyncTestCallback,
+        timeout,
         callbackExecuted = false, test = this;
 
     success = function () {
@@ -95,18 +104,29 @@ util.extend(Test.prototype, {
       start = new Date();
       if (this.asyncFn) {
         // actually executes the asyncTest here.
-        this.body(function (variables) {
+        asyncTestCallback = function (variables) {
           if (!callbackExecuted) {
             callbackExecuted = true;
-            runAssertions(test, {
-              assertions: function () {
-                test.asyncFn.call(variables || {}, Assert.assert);
-              },
-              success: success,
-              failure: handleError
-            });
+            if (timeout) {
+              timeout.clear();
+            }
+            if (timeout && timeout.executed) {
+              handleError(new Error('Timeout'));
+            } else {
+              runAssertions(test, {
+                assertions: function () {
+                  test.asyncFn.call(variables || {}, Assert.assert);
+                },
+                success: success,
+                failure: handleError
+              });
+            }
           }
-        });
+        };
+        this.body(asyncTestCallback);
+        if (!callbackExecuted && this.getTimeout()) {
+          timeout = util.timeout(asyncTestCallback, this.getTimeout());
+        }
       } else {
         runAssertions(test, {
           assertions: function () {
@@ -119,6 +139,16 @@ util.extend(Test.prototype, {
     } catch (e) {
       handleError(e);
     }
+  },
+  /**
+   * In order to serialize module we need to remove circular references
+   * the module object
+   */
+  toJSON: function () {
+    var copy = {};
+    util.extend(copy, this);
+    delete copy.module;
+    return copy;
   }
 });
 

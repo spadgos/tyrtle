@@ -162,6 +162,7 @@ util.extend(Tyrtle.prototype, {
   skips : 0,
   startTime: 0,
   runTime: -1,
+  timeout: 0,
   ////
   /**
    * Create a new test module and add it to this instance of Tyrtle
@@ -220,6 +221,14 @@ util.extend(Tyrtle.prototype, {
       }
     };
     runNext();
+  },
+
+  getTimeout: function () {
+    return this.timeout;
+  },
+
+  setTimeout: function (time) {
+    this.timeout = Math.max(time, 0);
   }
 });
 

@@ -34,17 +34,28 @@ function addHelper(name, fn) {
   }
   this.helpers[name].push(fn);
 }
-function runHelper(helpers, callback, catchBlock) {
+function runHelper(mod, helpers, callback, catchBlock) {
   if (helpers && helpers.length) {
-    var helper = helpers[0];
+    var helper = helpers[0],
+        timeout;
     try {
-      if (helper.length) {
+      if (helper.length) { // async function
+        if (mod.getTimeout()) {
+          timeout = util.timeout(function () {
+            catchBlock(new Error('Timeout exceeded'));
+          }, mod.getTimeout());
+        }
         helper(function () {
-          runHelper(helpers.slice(1), callback, catchBlock);
+          if (timeout) {
+            timeout.clear();
+          }
+          if (!timeout || !timeout.executed) {
+            runHelper(mod, helpers.slice(1), callback, catchBlock);
+          }
         });
       } else {
         helper();
-        runHelper(helpers.slice(1), callback, catchBlock);
+        runHelper(mod, helpers.slice(1), callback, catchBlock);
       }
     } catch (e) {
       catchBlock(e);
@@ -76,9 +87,10 @@ util.extend(Module.prototype, {
    * @return {Test} The newly created test.
    */
   test : function (name, expectedAssertions, bodyFn, assertionsFn) {
-    var t = new Test(name, expectedAssertions, bodyFn, assertionsFn);
-    this.tests.push(t);
-    return t;
+    var test = new Test(name, expectedAssertions, bodyFn, assertionsFn);
+    test.module = this;
+    this.tests.push(test);
+    return test;
   },
   /**
    * Add a `before` helper which is executed *before each test* is started.
@@ -155,6 +167,14 @@ util.extend(Module.prototype, {
     this.skipMessage = condition ? message : null;
   },
 
+  getTimeout: function () {
+    return this.timeout || this.tyrtle.getTimeout();
+  },
+
+  setTimeout: function (time) {
+    this.timeout = Math.max(time, 0);
+  },
+
   run : function (callback) {
     var runNext,
       i = -1,
@@ -166,7 +186,7 @@ util.extend(Module.prototype, {
       var test;
       if (++i >= l) { // we've done all the tests, break the loop.
         Assert.clearTemporaryAssertions();
-        runHelper(mod.helpers.afterAll, callback, function (e) {
+        runHelper(mod, mod.helpers.afterAll, callback, function (e) {
           test = mod.tests[mod.tests.length - 1];
           if (test) {
             switch (test.status) {
@@ -223,7 +243,7 @@ util.extend(Module.prototype, {
       callback();
     } else {
       Assert.setTemporaryAssertions(this.extraAssertions);
-      runHelper(this.helpers.beforeAll, runNext, function (e) {
+      runHelper(this, this.helpers.beforeAll, runNext, function (e) {
         // mark all the tests as failed.
         for (j = 0, jl = mod.tests.length; j < jl; ++j) {
           renderer.get().beforeTest(mod.tests[j], mod, mod.tyrtle);
@@ -243,13 +263,16 @@ util.extend(Module.prototype, {
    * @protected
    */
   runTest : function (test, callback) {
-    var m = this, t = this.tyrtle, go, done;
-    renderer.get().beforeTest(test, m, t);
+    var mod = this,
+        tyrtle = this.tyrtle,
+        go,
+        done;
+    renderer.get().beforeTest(test, mod, tyrtle);
     go = function () {
       test.run(done);
     };
     done = function () {
-      runHelper(m.helpers.after, callback, function (e) {
+      runHelper(mod, mod.helpers.after, callback, function (e) {
         test.status = FAIL;
         if (!test.error) {
           test.statusMessage = "Error in the after helper. " + e.message;
@@ -258,7 +281,7 @@ util.extend(Module.prototype, {
         callback();
       });
     };
-    runHelper(this.helpers.before, go, function (e) {
+    runHelper(this, this.helpers.before, go, function (e) {
       test.status = FAIL;
       test.statusMessage = "Error in the before helper.";
       test.error = e;
@@ -311,7 +334,7 @@ util.extend(Module.prototype, {
           }
           complete();
         };
-        runHelper(mod.helpers.afterAll, aftersDone, function (e) {
+        runHelper(mod, mod.helpers.afterAll, aftersDone, function (e) {
           test.status = FAIL;
           test.error = e;
           test.statusMessage = "Error in the afterAll helper";
@@ -329,7 +352,7 @@ util.extend(Module.prototype, {
         callback();
       }
     };
-    runHelper(this.helpers.beforeAll, run, function (e) {
+    runHelper(this, this.helpers.beforeAll, run, function (e) {
       test.status = FAIL;
       test.error = e;
       test.statusMessage = "Error in the beforeAll helper";
