@@ -2,19 +2,16 @@ TMP_DIR=tmp
 SRC_DIR=src
 BUILD_OPTIONS_DIR=build
 BUILD_OPTIONS=$(BUILD_OPTIONS_DIR)/build.js
-RJS=r.js
+RJS=node_modules/.bin/r.js
 
-all: install build clean
-
-install:
-	npm install
+all: build
 
 build: combine clean
 
-convert:
+convert: $(RJS)
 	$(RJS) -convert $(SRC_DIR) $(TMP_DIR)
 
-combine: convert
+combine: $(RJS) convert
 	$(RJS) -o $(BUILD_OPTIONS) baseUrl=$(TMP_DIR)
 
 clean:
@@ -36,3 +33,7 @@ coverage: build clean
 
 minify: convert
 	$(RJS) -o $(BUILD_OPTIONS) baseUrl=$(TMP_DIR) optimize=uglify out=Tyrtle.mini.js
+
+
+$(RJS):
+	npm install
