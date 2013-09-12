@@ -116,7 +116,7 @@ runTests = function () {
     val = loadFiles[i];
     if (re_glob.test(val)) {
       glob = glob || require('glob');
-      newFiles = glob.globSync(val);
+      newFiles = glob.sync(val);
       loadFiles.push.apply(loadFiles, newFiles);
       l += newFiles.length;
     } else {
