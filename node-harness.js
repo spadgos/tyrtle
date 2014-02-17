@@ -100,13 +100,13 @@ runTests = function () {
     newFiles,
     run = false,
     t,
-    options = {},
-    argKeys = Object.keys(args).forEach(function (key) {
-      if (!(/^(\$0|_)$/.test(key))) {
-        options[key] = args[key];
-      }
-    })
+    options = {}
   ;
+  Object.keys(args).forEach(function (key) {
+    if (!(/^(\$0|_)$/.test(key))) {
+      options[key] = args[key];
+    }
+  });
   options.callback = function () {
     process.exit(t.fails);
   };
@@ -116,7 +116,7 @@ runTests = function () {
     val = loadFiles[i];
     if (re_glob.test(val)) {
       glob = glob || require('glob');
-      newFiles = glob.globSync(val);
+      newFiles = glob.sync(val);
       loadFiles.push.apply(loadFiles, newFiles);
       l += newFiles.length;
     } else {
