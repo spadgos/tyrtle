@@ -100,13 +100,13 @@ runTests = function () {
     newFiles,
     run = false,
     t,
-    options = {},
-    argKeys = Object.keys(args).forEach(function (key) {
-      if (!(/^(\$0|_)$/.test(key))) {
-        options[key] = args[key];
-      }
-    })
+    options = {}
   ;
+  Object.keys(args).forEach(function (key) {
+    if (!(/^(\$0|_)$/.test(key))) {
+      options[key] = args[key];
+    }
+  });
   options.callback = function () {
     process.exit(t.fails);
   };

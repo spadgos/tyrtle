@@ -19,6 +19,6 @@
   },
   "dependencies" : {
     "optimist" : "0.2.x",
-    "glob" : "3.2.x"
+    "glob" : "3.2.8"
   }
 }
