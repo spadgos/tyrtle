@@ -65,6 +65,10 @@ function runHelper(mod, helpers, callback, catchBlock) {
   }
 }
 
+function getStatusMessageForHelperFailure(helperType, err) {
+  return "Error in the " + helperType + " helper. " + (err ? err.message || err : "");
+}
+
 util.extend(Module.prototype, {
   tests : null,           // array of tests
   tyrtle : null,          // reference to the owner Tyrtle instance
@@ -203,6 +207,7 @@ util.extend(Module.prototype, {
             if (!test.error) {
               ++mod.errors;
               test.error = e;
+              test.statusMessage = getStatusMessageForHelperFailure("afterAll", e);
             }
           }
           callback();
@@ -248,6 +253,7 @@ util.extend(Module.prototype, {
         for (j = 0, jl = mod.tests.length; j < jl; ++j) {
           renderer.get().beforeTest(mod.tests[j], mod, mod.tyrtle);
           mod.tests[j].status = FAIL;
+          mod.tests[j].statusMessage = getStatusMessageForHelperFailure("beforeAll", e);
           mod.tests[j].error = e;
           renderer.get().afterTest(mod.tests[j], mod, mod.tyrtle);
         }
@@ -275,7 +281,7 @@ util.extend(Module.prototype, {
       runHelper(mod, mod.helpers.after, callback, function (e) {
         test.status = FAIL;
         if (!test.error) {
-          test.statusMessage = "Error in the after helper. " + e.message;
+          test.statusMessage = getStatusMessageForHelperFailure("after", e);
           test.error = e;
         }
         callback();
@@ -283,7 +289,7 @@ util.extend(Module.prototype, {
     };
     runHelper(this, this.helpers.before, go, function (e) {
       test.status = FAIL;
-      test.statusMessage = "Error in the before helper.";
+      test.statusMessage = getStatusMessageForHelperFailure("before", e);
       test.error = e;
       done();
     });
@@ -336,8 +342,10 @@ util.extend(Module.prototype, {
         };
         runHelper(mod, mod.helpers.afterAll, aftersDone, function (e) {
           test.status = FAIL;
-          test.error = e;
-          test.statusMessage = "Error in the afterAll helper";
+          if (!test.error) {
+            test.error = e;
+            test.statusMessage = getStatusMessageForHelperFailure("afterAll", e.message);
+          }
           aftersDone();
         });
       });
@@ -355,7 +363,7 @@ util.extend(Module.prototype, {
     runHelper(this, this.helpers.beforeAll, run, function (e) {
       test.status = FAIL;
       test.error = e;
-      test.statusMessage = "Error in the beforeAll helper";
+      test.statusMessage = getStatusMessageForHelperFailure("beforeAll", e);
       ++mod.fails;
       ++tyrtle.fails;
       ++mod.errors;

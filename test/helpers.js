@@ -53,12 +53,14 @@ asyncTest("Test helpers are executed properly", function () {
 });
 asyncTest("Errors in the before are reported on each test", function () {
   var t;
-  expect(3);
+  expect(5);
   t = new Tyrtle({
     callback : function () {
       equal(this.passes, 2, "two should have passed.");
       equal(this.fails, 2, "two should have failed.");
       equal(this.errors, 2, "those two failures should have been from errors.");
+      equal(this.modules[0].tests[0].statusMessage, "Error in the before helper. error 1");
+      equal(this.modules[0].tests[2].statusMessage, "Error in the before helper. error 3");
       start();
     }
   });
@@ -66,7 +68,7 @@ asyncTest("Errors in the before are reported on each test", function () {
     var x = 0;
     this.before(function () {
       if (++x % 2) {
-        throw "an error";
+        throw "error " + x;
       }
     });
     this.test("a", function () {});
@@ -78,12 +80,14 @@ asyncTest("Errors in the before are reported on each test", function () {
 });
 asyncTest("Errors in the after are reported on each test", function () {
   var t;
-  expect(3);
+  expect(5);
   t = new Tyrtle({
     callback : function () {
       equal(this.passes, 2, "two should have passed.");
       equal(this.fails, 2, "two should have failed.");
       equal(this.errors, 2, "those two failures should have been from errors.");
+      equal(this.modules[0].tests[0].statusMessage, "Error in the after helper. error 1");
+      equal(this.modules[0].tests[2].statusMessage, "Error in the after helper. error 3");
       start();
     }
   });
@@ -91,7 +95,7 @@ asyncTest("Errors in the after are reported on each test", function () {
     var x = 0;
     this.after(function () {
       if (++x % 2) {
-        throw "an error";
+        throw new Error("error " + x);
       }
     });
     this.test("a", function () {});
@@ -103,13 +107,17 @@ asyncTest("Errors in the after are reported on each test", function () {
 });
 asyncTest("Errors in the beforeAll are reported on all tests", function () {
   var t, count = 0;
-  expect(4);
+  expect(8);
   t = new Tyrtle({
     callback : function () {
       equal(count, 0, "No tests should have been actually executed");
       equal(this.passes, 0, "none should have passed.");
       equal(this.fails, 4, "all  should have failed.");
       equal(this.errors, 4, "those failures should have been from errors.");
+      equal(this.modules[0].tests[0].statusMessage, "Error in the beforeAll helper. an error");
+      equal(this.modules[0].tests[1].statusMessage, "Error in the beforeAll helper. an error");
+      equal(this.modules[0].tests[2].statusMessage, "Error in the beforeAll helper. an error");
+      equal(this.modules[0].tests[3].statusMessage, "Error in the beforeAll helper. an error");
       start();
     }
   });
@@ -146,13 +154,14 @@ asyncTest("Errors in the beforeAll are reported on all tests", function () {
     shouldSkip = false;
     shouldPass = true;
     var t;
-    expect(4);
+    expect(5);
     t = new Tyrtle({
       callback : function () {
         equal(this.passes, 3, "the first three should have passed.");
         equal(this.fails, 1, "the last should have failed.");
         equal(this.errors, 1, "that failure should have been from an error.");
         equal(this.skips, 0, "none should have skipped");
+        equal(this.modules[0].tests[3].statusMessage, "Error in the afterAll helper. an error");
         start();
       }
     });
@@ -162,13 +171,14 @@ asyncTest("Errors in the beforeAll are reported on all tests", function () {
   asyncTest("Errors in the afterAll are reported on the last test, even when it is skipped", function () {
     shouldSkip = true;
     var t;
-    expect(4);
+    expect(5);
     t = new Tyrtle({
       callback : function () {
         equal(this.passes, 3, "the first three should have passed.");
         equal(this.fails, 1, "the last should have failed.");
         equal(this.errors, 1, "that failure should have been from an error.");
         equal(this.skips, 0, "none should have skipped.");
+        equal(this.modules[0].tests[3].statusMessage, "Error in the afterAll helper. an error");
         start();
       }
     });
@@ -178,14 +188,14 @@ asyncTest("Errors in the beforeAll are reported on all tests", function () {
   asyncTest("Errors in the afterAll are reported on the last test, even when it has already failed", function () {
     shouldSkip = false;
     shouldPass = false;
-    var t;
-    expect(4);
-    t = new Tyrtle({
+    expect(5);
+    var t = new Tyrtle({
       callback : function () {
         equal(this.passes, 3, "the first three should have passed.");
         equal(this.fails, 1, "the last should have failed.");
         equal(this.errors, 1, "that failure should have been from an error.");
         equal(this.skips, 0, "none should have skipped.");
+        equal(this.modules[0].tests[3].statusMessage, "Error in the afterAll helper. an error");
         start();
       }
     });
@@ -199,13 +209,14 @@ asyncTest("Errors in the before/afterAll are handled when rerunning tests", func
   t = new Tyrtle({
     callback : function () {
       var mod = t.modules[0],
-        test = mod.tests[0]
+          test = mod.tests[0]
       ;
       equal(t.passes, 1);
       afterError = 'abc';
       mod.rerunTest(test, t, function () {
         equal(t.fails, 1);
         equal(t.errors, 1);
+        debugger;
         equal(test.error, 'abc');
         beforeError = 'def';
         mod.rerunTest(test, t, function () {
