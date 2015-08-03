@@ -528,6 +528,8 @@ function build (condition, message/*, args */) {
         since.executed = true;
       }
       handleAssertionResult(condition.apply(assert, args), args, message, userMessage);
+    } catch (e) {
+        // IE throws error up if not caught here
     } finally {
       --internalAssertionCount;
     }
